@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import logoImg from '../../../img/logo.png';
 import { useFinance } from '../../context/FinanceContext';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../common/Button';
@@ -8,7 +9,6 @@ import {
   Sun,
   Moon,
   Database,
-  Sparkles,
   User,
   Cloud,
   CloudOff,
@@ -34,8 +34,12 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
           {/* Logo & Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden shadow-sm shadow-slate-200/50 dark:shadow-none flex-shrink-0 border border-slate-200/80 dark:border-slate-800 bg-white p-1 flex items-center justify-center">
+              <img
+                src={logoImg}
+                alt="VitaFin Logo"
+                className="w-full h-full object-contain rounded-full"
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
@@ -43,7 +47,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
                   Vita<span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">Fin</span>
                 </h1>
                 <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/60">
-                  v2.0
+                  v0.9
                 </span>
                 {user && (
                   <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60" title="Sincronizado com o Supabase">
@@ -53,7 +57,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
                 )}
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">
-                Controle financeiro pessoal inteligente
+                Controle financeiro inteligente
               </p>
             </div>
           </div>
