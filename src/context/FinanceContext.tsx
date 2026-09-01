@@ -8,7 +8,7 @@ import {
   CategorySummary,
   DailySummary,
 } from '../types/finance';
-import { DEFAULT_CATEGORIES, getSampleExpenses } from '../utils/defaultData';
+import { DEFAULT_CATEGORIES } from '../utils/defaultData';
 import {
   getCurrentYearMonth,
   getPreviousYearMonth,
@@ -133,12 +133,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const saved = localStorage.getItem(STORAGE_KEYS.EXPENSES) || localStorage.getItem('omnifinancas_expenses_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          // Remover qualquer gasto de exemplo/fictício que tenha ficado salvo
+          const cleanExpenses = parsed.filter((e: Expense) => !e.id?.startsWith('sample-'));
+          // Se limpou itens fictícios, atualiza o storage imediatamente
+          if (cleanExpenses.length !== parsed.length) {
+            localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(cleanExpenses));
+          }
+          return cleanExpenses;
+        }
       }
     } catch (e) {
       console.error('Erro ao carregar despesas do localStorage:', e);
     }
-    return getSampleExpenses();
+    return [];
   });
 
   // Budgets state
@@ -253,7 +261,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // Carregar localStorage caso saia da conta
       try {
         const savedExp = localStorage.getItem(STORAGE_KEYS.EXPENSES);
-        if (savedExp) setExpenses(JSON.parse(savedExp));
+        if (savedExp) {
+          const parsed = JSON.parse(savedExp);
+          if (Array.isArray(parsed)) {
+            const cleanExpenses = parsed.filter((e: Expense) => !e.id?.startsWith('sample-'));
+            setExpenses(cleanExpenses);
+          }
+        }
         const savedCat = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
         if (savedCat) setCategories(JSON.parse(savedCat));
       } catch (e) {
@@ -627,7 +641,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const resetToDefaults = () => {
     setCategories(DEFAULT_CATEGORIES);
-    setExpenses(getSampleExpenses());
+    setExpenses([]);
     setBudgets([]);
     setSelectedMonth(getCurrentYearMonth());
     setFilterState(DEFAULT_FILTER);

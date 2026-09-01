@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { AppModuleProvider, useAppModule } from './context/AppModuleContext';
 import { AuthProvider } from './context/AuthContext';
 import { FinanceProvider } from './context/FinanceContext';
+import { InvestmentProvider } from './context/InvestmentContext';
+import { InvestmentDashboard } from './components/investment/InvestmentDashboard';
 import { Header } from './components/layout/Header';
 import { MonthSelector } from './components/layout/MonthSelector';
 import { MetricCards } from './components/dashboard/MetricCards';
@@ -13,24 +16,18 @@ import { CategoryManagerModal } from './components/categories/CategoryManagerMod
 import { Plus } from 'lucide-react';
 
 const FinanceDashboard: React.FC = () => {
-  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
-  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = React.useState(false);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = React.useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = React.useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 flex flex-col transition-colors">
-      {/* Header Bar */}
       <Header onOpenNewExpense={() => setIsExpenseModalOpen(true)} />
 
-      {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
-        {/* Month Selector Navigation Bar */}
         <MonthSelector />
-
-        {/* 4 Metric Cards */}
         <MetricCards onOpenBudgetModal={() => setIsBudgetModalOpen(true)} />
 
-        {/* Charts Grid: Pie Chart (by Category) & Bar Chart (by Day) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
           <div className="lg:col-span-6 h-full">
             <CategoryPieChart />
@@ -40,11 +37,9 @@ const FinanceDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Detailed Expenses Section (Filter, Table/Cards, Search, Actions) */}
         <ExpenseList onOpenNewExpense={() => setIsExpenseModalOpen(true)} />
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-slate-200/80 dark:border-slate-800/80 py-6 mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p>
@@ -56,7 +51,6 @@ const FinanceDashboard: React.FC = () => {
         </div>
       </footer>
 
-      {/* Floating Action Button for Mobile */}
       <div className="fixed bottom-5 right-5 sm:hidden z-30 flex flex-col gap-2">
         <button
           type="button"
@@ -68,19 +62,16 @@ const FinanceDashboard: React.FC = () => {
         </button>
       </div>
 
-      {/* Modal: New / Edit Expense */}
       <ExpenseFormModal
         isOpen={isExpenseModalOpen}
         onClose={() => setIsExpenseModalOpen(false)}
       />
 
-      {/* Modal: Budget Settings */}
       <BudgetModal
         isOpen={isBudgetModalOpen}
         onClose={() => setIsBudgetModalOpen(false)}
       />
 
-      {/* Modal: Category Management */}
       <CategoryManagerModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
@@ -89,12 +80,27 @@ const FinanceDashboard: React.FC = () => {
   );
 };
 
+// Componente que escolhe qual dashboard renderizar
+const DashboardSelector: React.FC = () => {
+  const { currentModule } = useAppModule();
+
+  if (currentModule === 'vitainvest') {
+    return <InvestmentDashboard />;
+  }
+
+  return <FinanceDashboard />;
+};
+
 export default function App() {
   return (
-    <AuthProvider>
-      <FinanceProvider>
-        <FinanceDashboard />
-      </FinanceProvider>
-    </AuthProvider>
+    <AppModuleProvider>
+      <AuthProvider>
+        <FinanceProvider>
+          <InvestmentProvider>
+            <DashboardSelector />
+          </InvestmentProvider>
+        </FinanceProvider>
+      </AuthProvider>
+    </AppModuleProvider>
   );
 }

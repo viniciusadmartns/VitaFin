@@ -7,6 +7,7 @@ export interface Category {
   icon: string;
   isDefault?: boolean;
   budgetLimit?: number; // Optional limit for this category
+  module?: 'vitafin' | 'vitainvest'; // Indica a qual módulo pertence
 }
 
 export interface Expense {

@@ -1,5 +1,4 @@
 import { Category, Expense } from '../types/finance';
-import { getCurrentYearMonth } from './formatters';
 
 export const DEFAULT_CATEGORIES: Category[] = [
   {
@@ -68,65 +67,5 @@ export const DEFAULT_CATEGORIES: Category[] = [
 ];
 
 export function getSampleExpenses(): Expense[] {
-  const currentYM = getCurrentYearMonth();
-  return [
-    {
-      id: 'sample-1',
-      title: 'Supermercado do Mês',
-      amount: 450.80,
-      date: `${currentYM}-03`,
-      categoryId: 'cat-mercado',
-      paymentMethod: 'credit',
-      notes: 'Compras gerais de mantimentos e limpeza',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'sample-2',
-      title: 'Aluguel & Condomínio',
-      amount: 1400.00,
-      date: `${currentYM}-05`,
-      categoryId: 'cat-moradia',
-      paymentMethod: 'pix',
-      notes: 'Pagamento mensal moradia',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'sample-3',
-      title: 'Abastecimento Gasolina',
-      amount: 220.50,
-      date: `${currentYM}-08`,
-      categoryId: 'cat-transporte',
-      paymentMethod: 'debit',
-      notes: 'Tanque cheio posto Shell',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'sample-4',
-      title: 'Almoço Restaurante com amigos',
-      amount: 85.90,
-      date: `${currentYM}-12`,
-      categoryId: 'cat-alimentacao',
-      paymentMethod: 'pix',
-      notes: 'Almoço de domingo',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'sample-5',
-      title: 'Farmácia - Vitaminas e Remédios',
-      amount: 115.30,
-      date: `${currentYM}-15`,
-      categoryId: 'cat-saude',
-      paymentMethod: 'credit',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'sample-6',
-      title: 'Assinatura Streaming & Cinema',
-      amount: 55.90,
-      date: `${currentYM}-18`,
-      categoryId: 'cat-lazer',
-      paymentMethod: 'credit',
-      createdAt: new Date().toISOString(),
-    },
-  ];
+  return [];
 }
