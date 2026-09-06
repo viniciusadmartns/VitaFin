@@ -7,6 +7,7 @@ import {
   MonthStats,
   CategorySummary,
   DailySummary,
+  TransactionType,
 } from '../types/finance';
 import { DEFAULT_CATEGORIES } from '../utils/defaultData';
 import {
@@ -80,10 +81,23 @@ const STORAGE_KEYS = {
 
 const DEFAULT_FILTER: ExpenseFilter = {
   search: '',
+  type: 'all',
   categoryId: 'all',
   paymentMethod: 'all',
   sortBy: 'date-desc',
 };
+
+// Helper to determine if category is income by icon/id/name heuristics if type is missing
+function inferCategoryType(cat: { id?: string; name?: string; icon?: string; type?: string }): TransactionType {
+  if (cat.type === 'income' || cat.type === 'expense') return cat.type;
+  const incomeIcons = ['banknote', 'briefcase', 'trending-up', 'gift', 'wallet', 'coins', 'badge-dollar-sign'];
+  if (cat.icon && incomeIcons.includes(cat.icon)) return 'income';
+  const idLower = (cat.id || '').toLowerCase();
+  if (idLower.includes('salario') || idLower.includes('freelance') || idLower.includes('invest') || idLower.includes('vendas') || idLower.includes('bonus') || idLower.includes('income') || idLower.includes('receita')) {
+    return 'income';
+  }
+  return 'expense';
+}
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
@@ -118,9 +132,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     try {
       const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES) || localStorage.getItem('omnifinancas_categories_v1');
       if (saved) {
-        const parsed = JSON.parse(saved);
+        const parsed: Category[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return [...parsed].sort((a: Category, b: Category) =>
+          const hasIncomeCats = parsed.some((c: Category) => c.type === 'income' || inferCategoryType(c) === 'income');
+          let combinedList: Category[] = parsed.map((c: Category) => ({
+            ...c,
+            type: (c.type || inferCategoryType(c)) as TransactionType,
+          }));
+
+          if (!hasIncomeCats) {
+            const defaultIncomeCats = DEFAULT_CATEGORIES.filter((c) => c.type === 'income');
+            combinedList = [...combinedList, ...defaultIncomeCats];
+          }
+
+          return combinedList.sort((a, b) =>
             a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
           );
         }
@@ -138,9 +163,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          // Remover qualquer gasto de exemplo/fictício que tenha ficado salvo
-          const cleanExpenses = parsed.filter((e: Expense) => !e.id?.startsWith('sample-'));
-          // Se limpou itens fictícios, atualiza o storage imediatamente
+          const cleanExpenses = parsed
+            .filter((e: Expense) => !e.id?.startsWith('sample-'))
+            .map((e: Expense) => ({
+              ...e,
+              type: e.type || 'expense',
+            }));
+
           if (cleanExpenses.length !== parsed.length) {
             localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(cleanExpenses));
           }
@@ -171,69 +200,231 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentYearMonth);
   const [filter, setFilterState] = useState<ExpenseFilter>(DEFAULT_FILTER);
 
+  // Sync to localStorage ALWAYS (resilient offline backup & instant retrieval)
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
+      if (user) {
+        localStorage.setItem(`${STORAGE_KEYS.CATEGORIES}_${user.id}`, JSON.stringify(categories));
+      }
+    } catch (e) {
+      console.error('Erro ao salvar categorias no storage:', e);
+    }
+  }, [categories, user]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
+      if (user) {
+        localStorage.setItem(`${STORAGE_KEYS.EXPENSES}_${user.id}`, JSON.stringify(expenses));
+      }
+    } catch (e) {
+      console.error('Erro ao salvar despesas no storage:', e);
+    }
+  }, [expenses, user]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(budgets));
+      if (user) {
+        localStorage.setItem(`${STORAGE_KEYS.BUDGETS}_${user.id}`, JSON.stringify(budgets));
+      }
+    } catch (e) {
+      console.error('Erro ao salvar orçamentos no storage:', e);
+    }
+  }, [budgets, user]);
+
+  // Safe Supabase Operations with Auto-fallback if schema lacks 'type' column
+  const syncExpenseToSupabase = useCallback(async (exp: Expense, userId: string) => {
+    if (!supabase) return;
+    const payload: Record<string, unknown> = {
+      id: exp.id,
+      user_id: userId,
+      title: exp.title,
+      amount: exp.amount,
+      date: exp.date,
+      category_id: exp.categoryId || null,
+      type: exp.type || 'expense',
+      payment_method: exp.paymentMethod || 'pix',
+      notes: exp.notes || null,
+      installment_group_id: exp.installmentGroupId || null,
+      installment_number: exp.installmentNumber || null,
+      total_installments: exp.totalInstallments || null,
+      installment_total_amount: exp.installmentTotalAmount || null,
+      created_at: exp.createdAt,
+    };
+
+    const { error } = await supabase.from('expenses').upsert(payload, { onConflict: 'id' });
+    if (error && (error.message?.includes('type') || error.code === 'PGRST204' || error.code === '42703')) {
+      const { type: _, ...fallbackPayload } = payload;
+      await supabase.from('expenses').upsert(fallbackPayload, { onConflict: 'id' });
+    }
+  }, []);
+
+  const syncCategoryToSupabase = useCallback(async (cat: Category, userId: string) => {
+    if (!supabase) return;
+    const payload: Record<string, unknown> = {
+      id: cat.id,
+      user_id: userId,
+      name: cat.name,
+      color: cat.color,
+      icon: cat.icon,
+      type: cat.type || 'expense',
+      is_default: Boolean(cat.isDefault),
+      budget_limit: cat.budgetLimit || null,
+    };
+
+    const { error } = await supabase.from('categories').upsert(payload, { onConflict: 'id' });
+    if (error && (error.message?.includes('type') || error.code === 'PGRST204' || error.code === '42703')) {
+      const { type: _, ...fallbackPayload } = payload;
+      await supabase.from('categories').upsert(fallbackPayload, { onConflict: 'id' });
+    }
+  }, []);
+
   // Sync to/from Supabase when user is authenticated
   const loadSupabaseData = useCallback(async (userId: string) => {
     if (!supabase) return;
     setIsLoadingData(true);
 
     try {
-      // 1. Carregar Categorias
+      // 1. Carregar Categorias do Supabase
       const { data: catData, error: catError } = await supabase
         .from('categories')
         .select('*')
         .eq('user_id', userId);
 
+      let currentCategories: Category[] = [];
+
       if (catError) {
         console.error('Erro ao buscar categorias do Supabase:', catError);
       } else if (catData && catData.length > 0) {
-        const mappedCategories: Category[] = catData.map((c: Record<string, unknown>) => ({
-          id: String(c.id),
-          name: String(c.name),
-          color: String(c.color),
-          icon: String(c.icon),
-          isDefault: Boolean(c.is_default),
-          budgetLimit: c.budget_limit ? Number(c.budget_limit) : undefined,
-        })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
-        setCategories(mappedCategories);
+        const mappedCategories: Category[] = catData.map((c: Record<string, unknown>) => {
+          const inferType = inferCategoryType({
+            id: String(c.id),
+            name: String(c.name),
+            icon: String(c.icon),
+            type: c.type as string | undefined,
+          });
+          return {
+            id: String(c.id),
+            name: String(c.name),
+            color: String(c.color),
+            icon: String(c.icon),
+            type: ((c.type as Category['type']) || inferType) as TransactionType,
+            isDefault: Boolean(c.is_default),
+            budgetLimit: c.budget_limit ? Number(c.budget_limit) : undefined,
+          };
+        }).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+
+        // Se o usuário ainda não tiver categorias de receita no Supabase, adiciona as padrões
+        const hasIncome = mappedCategories.some((c) => c.type === 'income');
+        if (!hasIncome) {
+          const defaultIncomeCats = DEFAULT_CATEGORIES.filter((c) => c.type === 'income');
+          const toInsert = defaultIncomeCats.map((c) => ({
+            id: `${c.id}-${userId.slice(0, 8)}`,
+            user_id: userId,
+            name: c.name,
+            color: c.color,
+            icon: c.icon,
+            type: 'income',
+            is_default: true,
+          }));
+
+          const { error: insertErr } = await supabase.from('categories').insert(toInsert);
+          if (insertErr && (insertErr.message?.includes('type') || insertErr.code === 'PGRST204' || insertErr.code === '42703')) {
+            const fallbackInsert = toInsert.map(({ type: _, ...rest }) => rest);
+            await supabase.from('categories').insert(fallbackInsert);
+          }
+
+          const newDefaultCats: Category[] = defaultIncomeCats.map((c) => ({
+            ...c,
+            id: `${c.id}-${userId.slice(0, 8)}`,
+          }));
+          currentCategories = [...mappedCategories, ...newDefaultCats].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+        } else {
+          currentCategories = mappedCategories;
+        }
+
+        setCategories(currentCategories);
       } else {
         // Se usuário não tiver categorias salvas no Supabase, envia as categorias padrão
         const initialCategories = DEFAULT_CATEGORIES.map((c) => ({
-          id: c.id,
+          id: `${c.id}-${userId.slice(0, 8)}`,
           user_id: userId,
           name: c.name,
           color: c.color,
           icon: c.icon,
+          type: c.type || 'expense',
           is_default: Boolean(c.isDefault),
         }));
-        await supabase.from('categories').insert(initialCategories);
-        setCategories(DEFAULT_CATEGORIES);
+
+        const { error: insertErr } = await supabase.from('categories').insert(initialCategories);
+        if (insertErr && (insertErr.message?.includes('type') || insertErr.code === 'PGRST204' || insertErr.code === '42703')) {
+          const fallbackInsert = initialCategories.map(({ type: _, ...rest }) => rest);
+          await supabase.from('categories').insert(fallbackInsert);
+        }
+
+        currentCategories = DEFAULT_CATEGORIES.map((c) => ({
+          ...c,
+          id: `${c.id}-${userId.slice(0, 8)}`,
+        }));
+        setCategories(currentCategories);
       }
 
-      // 2. Carregar Despesas
+      // 2. Carregar Despesas e Receitas do Supabase
       const { data: expData, error: expError } = await supabase
         .from('expenses')
         .select('*')
         .eq('user_id', userId);
 
       if (expError) {
-        console.error('Erro ao buscar despesas do Supabase:', expError);
+        console.error('Erro ao buscar lançamentos do Supabase:', expError);
       } else if (expData) {
-        const mappedExpenses: Expense[] = expData.map((e: Record<string, unknown>) => ({
-          id: String(e.id),
-          title: String(e.title),
-          amount: Number(e.amount),
-          date: String(e.date),
-          categoryId: String(e.category_id),
-          paymentMethod: (e.payment_method as Expense['paymentMethod']) || 'credit',
-          notes: e.notes ? String(e.notes) : undefined,
-          installmentGroupId: e.installment_group_id ? String(e.installment_group_id) : undefined,
-          installmentNumber: e.installment_number ? Number(e.installment_number) : undefined,
-          totalInstallments: e.total_installments ? Number(e.total_installments) : undefined,
-          installmentTotalAmount: e.installment_total_amount ? Number(e.installment_total_amount) : undefined,
-          createdAt: String(e.created_at || new Date().toISOString()),
-          updatedAt: e.updated_at ? String(e.updated_at) : undefined,
-        }));
-        setExpenses(mappedExpenses);
+        const catMap = new Map<string, Category>(currentCategories.map((c) => [c.id, c]));
+
+        const mappedExpenses: Expense[] = expData.map((e: Record<string, unknown>) => {
+          let itemType: TransactionType = (e.type as TransactionType);
+          if (!itemType || (itemType !== 'expense' && itemType !== 'income')) {
+            const linkedCat = catMap.get(String(e.category_id));
+            if (linkedCat?.type === 'income') {
+              itemType = 'income';
+            } else {
+              itemType = 'expense';
+            }
+          }
+
+          return {
+            id: String(e.id),
+            title: String(e.title),
+            amount: Number(e.amount),
+            date: String(e.date),
+            categoryId: String(e.category_id),
+            type: itemType,
+            paymentMethod: (e.payment_method as Expense['paymentMethod']) || 'pix',
+            notes: e.notes ? String(e.notes) : undefined,
+            installmentGroupId: e.installment_group_id ? String(e.installment_group_id) : undefined,
+            installmentNumber: e.installment_number ? Number(e.installment_number) : undefined,
+            totalInstallments: e.total_installments ? Number(e.total_installments) : undefined,
+            installmentTotalAmount: e.installment_total_amount ? Number(e.installment_total_amount) : undefined,
+            createdAt: String(e.created_at || new Date().toISOString()),
+            updatedAt: e.updated_at ? String(e.updated_at) : undefined,
+          };
+        });
+
+        // Mesclar com lançamentos locais pendentes (para não perder nada caso esteja recém adicionado)
+        setExpenses((prevLocal) => {
+          const dbIds = new Set(mappedExpenses.map((m) => m.id));
+          const pendingLocal = prevLocal.filter((loc) => !dbIds.has(loc.id));
+
+          // Sincronizar itens pendentes para o Supabase
+          if (pendingLocal.length > 0) {
+            pendingLocal.forEach((pend) => {
+              syncExpenseToSupabase(pend, userId);
+            });
+          }
+
+          return [...pendingLocal, ...mappedExpenses];
+        });
       }
 
       // 3. Carregar Orçamentos
@@ -256,82 +447,50 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     } finally {
       setIsLoadingData(false);
     }
-  }, []);
+  }, [syncExpenseToSupabase]);
 
+  // Carregar dados na inicialização ou login do usuário
   useEffect(() => {
     if (user && supabase) {
       loadSupabaseData(user.id);
     } else if (!user) {
-      // Carregar localStorage caso saia da conta
+      // Carregar dados salvos do localStorage
       try {
         const savedExp = localStorage.getItem(STORAGE_KEYS.EXPENSES);
         if (savedExp) {
           const parsed = JSON.parse(savedExp);
           if (Array.isArray(parsed)) {
-            const cleanExpenses = parsed.filter((e: Expense) => !e.id?.startsWith('sample-'));
+            const cleanExpenses = parsed
+              .filter((e: Expense) => !e.id?.startsWith('sample-'))
+              .map((e: Expense) => ({ ...e, type: e.type || 'expense' }));
             setExpenses(cleanExpenses);
           }
         }
         const savedCat = localStorage.getItem(STORAGE_KEYS.CATEGORIES);
-        if (savedCat) setCategories(JSON.parse(savedCat));
+        if (savedCat) {
+          const parsedCat = JSON.parse(savedCat);
+          if (Array.isArray(parsedCat) && parsedCat.length > 0) {
+            setCategories(parsedCat);
+          }
+        }
       } catch (e) {
         console.error('Erro ao restaurar dados locais:', e);
       }
     }
   }, [user, loadSupabaseData]);
 
-  // Sync to localStorage as local backup
-  useEffect(() => {
-    if (!user) {
-      try {
-        localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
-      } catch (e) {
-        console.error('Erro ao salvar categorias:', e);
-      }
-    }
-  }, [categories, user]);
-
-  useEffect(() => {
-    if (!user) {
-      try {
-        localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
-      } catch (e) {
-        console.error('Erro ao salvar gastos:', e);
-      }
-    }
-  }, [expenses, user]);
-
-  useEffect(() => {
-    if (!user) {
-      try {
-        localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(budgets));
-      } catch (e) {
-        console.error('Erro ao salvar orçamentos:', e);
-      }
-    }
-  }, [budgets, user]);
-
   // Actions for Category
   const addCategory = (categoryData: Omit<Category, 'id'>): Category => {
     const newCategory: Category = {
       ...categoryData,
+      type: categoryData.type || 'expense',
       id: `cat-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       isDefault: false,
     };
     setCategories((prev) => [...prev, newCategory]);
 
     if (user && supabase) {
-      supabase.from('categories').insert({
-        id: newCategory.id,
-        user_id: user.id,
-        name: newCategory.name,
-        color: newCategory.color,
-        icon: newCategory.icon,
-        is_default: false,
-        budget_limit: newCategory.budgetLimit || null,
-      }).then(({ error }) => {
-        if (error) console.error('Erro ao salvar categoria no Supabase:', error);
-      });
+      syncCategoryToSupabase(newCategory, user.id);
     }
 
     return newCategory;
@@ -342,16 +501,26 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       prev.map((cat) => (cat.id === id ? { ...cat, ...updates } : cat))
     );
 
-    if (user && supabase) {
+    const client = supabase;
+    if (user && client) {
       const payload: Record<string, unknown> = {};
       if (updates.name !== undefined) payload.name = updates.name;
       if (updates.color !== undefined) payload.color = updates.color;
       if (updates.icon !== undefined) payload.icon = updates.icon;
+      if (updates.type !== undefined) payload.type = updates.type;
       if (updates.budgetLimit !== undefined) payload.budget_limit = updates.budgetLimit;
 
-      supabase.from('categories').update(payload).eq('id', id).eq('user_id', user.id).then(({ error }) => {
-        if (error) console.error('Erro ao atualizar categoria no Supabase:', error);
-      });
+      client
+        .from('categories')
+        .update(payload)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .then(async ({ error }) => {
+          if (error && (error.message?.includes('type') || error.code === 'PGRST204' || error.code === '42703')) {
+            const { type: _, ...fallbackPayload } = payload;
+            await client.from('categories').update(fallbackPayload).eq('id', id).eq('user_id', user.id);
+          }
+        });
     }
   };
 
@@ -362,7 +531,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!reassignCategoryId) {
         return {
           success: false,
-          error: `Existem ${linkedExpenses.length} despesa(s) nesta categoria. Selecione outra categoria para reatribuí-las antes de excluir.`,
+          error: `Existem ${linkedExpenses.length} lançamento(s) nesta categoria. Selecione outra categoria para reatribuí-los antes de excluir.`,
         };
       }
       // Reassign linked expenses
@@ -397,29 +566,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return categories.find((c) => c.id === id);
   };
 
-  // Actions for Expenses
+  // Actions for Expenses & Incomes
   const addExpense = (expenseData: Omit<Expense, 'id' | 'createdAt'>): Expense => {
     const newExpense: Expense = {
       ...expenseData,
+      type: expenseData.type || 'expense',
       id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       createdAt: new Date().toISOString(),
     };
     setExpenses((prev) => [newExpense, ...prev]);
 
     if (user && supabase) {
-      supabase.from('expenses').insert({
-        id: newExpense.id,
-        user_id: user.id,
-        title: newExpense.title,
-        amount: newExpense.amount,
-        date: newExpense.date,
-        category_id: newExpense.categoryId,
-        payment_method: newExpense.paymentMethod || 'credit',
-        notes: newExpense.notes || null,
-        created_at: newExpense.createdAt,
-      }).then(({ error }) => {
-        if (error) console.error('Erro ao inserir despesa no Supabase:', error);
-      });
+      syncExpenseToSupabase(newExpense, user.id);
     }
 
     return newExpense;
@@ -438,16 +596,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const remainder = Math.round((totalAmount - baseInstallmentAmount * count) * 100) / 100;
 
     const newExpenses: Expense[] = [];
-    const supabasePayloads: Record<string, unknown>[] = [];
 
     for (let i = 1; i <= count; i++) {
-      const installmentDate = addMonthsToDate(baseExpense.date, i - 1);
+      const installmentDate = addMonthsToDate(baseExpense.date, i);
       const currentAmount = i === count ? Number((baseInstallmentAmount + remainder).toFixed(2)) : baseInstallmentAmount;
 
       const item: Expense = {
         ...baseExpense,
+        type: 'expense',
         id: `exp-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 5)}`,
-        title: `${baseExpense.title} (${i}/${count})`,
+        title: baseExpense.title,
         amount: currentAmount,
         date: installmentDate,
         paymentMethod: 'installment',
@@ -460,32 +618,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       newExpenses.push(item);
 
       if (user && supabase) {
-        supabasePayloads.push({
-          id: item.id,
-          user_id: user.id,
-          title: item.title,
-          amount: item.amount,
-          date: item.date,
-          category_id: item.categoryId,
-          payment_method: 'installment',
-          notes: item.notes || null,
-          installment_group_id: groupId,
-          installment_number: i,
-          total_installments: count,
-          installment_total_amount: totalAmount,
-          created_at: nowIso,
-        });
+        syncExpenseToSupabase(item, user.id);
       }
     }
 
     setExpenses((prev) => [...newExpenses, ...prev]);
-
-    if (user && supabase && supabasePayloads.length > 0) {
-      supabase.from('expenses').insert(supabasePayloads).then(({ error }) => {
-        if (error) console.error('Erro ao inserir parcelas no Supabase:', error);
-      });
-    }
-
     return newExpenses;
   };
 
@@ -503,18 +640,28 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       )
     );
 
-    if (user && supabase) {
+    const client = supabase;
+    if (user && client) {
       const payload: Record<string, unknown> = { updated_at: updatedAt };
       if (updates.title !== undefined) payload.title = updates.title;
       if (updates.amount !== undefined) payload.amount = updates.amount;
       if (updates.date !== undefined) payload.date = updates.date;
       if (updates.categoryId !== undefined) payload.category_id = updates.categoryId;
+      if (updates.type !== undefined) payload.type = updates.type;
       if (updates.paymentMethod !== undefined) payload.payment_method = updates.paymentMethod;
       if (updates.notes !== undefined) payload.notes = updates.notes;
 
-      supabase.from('expenses').update(payload).eq('id', id).eq('user_id', user.id).then(({ error }) => {
-        if (error) console.error('Erro ao atualizar despesa no Supabase:', error);
-      });
+      client
+        .from('expenses')
+        .update(payload)
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .then(async ({ error }) => {
+          if (error && (error.message?.includes('type') || error.code === 'PGRST204' || error.code === '42703')) {
+            const { type: _, ...fallbackPayload } = payload;
+            await client.from('expenses').update(fallbackPayload).eq('id', id).eq('user_id', user.id);
+          }
+        });
     }
   };
 
@@ -523,7 +670,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     if (user && supabase) {
       supabase.from('expenses').delete().eq('id', id).eq('user_id', user.id).then(({ error }) => {
-        if (error) console.error('Erro ao excluir despesa no Supabase:', error);
+        if (error) console.error('Erro ao excluir lançamento no Supabase:', error);
       });
     }
   };
@@ -554,19 +701,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setExpenses((prev) => [duplicated, ...prev]);
 
     if (user && supabase) {
-      supabase.from('expenses').insert({
-        id: duplicated.id,
-        user_id: user.id,
-        title: duplicated.title,
-        amount: duplicated.amount,
-        date: duplicated.date,
-        category_id: duplicated.categoryId,
-        payment_method: duplicated.paymentMethod || 'credit',
-        notes: duplicated.notes || null,
-        created_at: duplicated.createdAt,
-      }).then(({ error }) => {
-        if (error) console.error('Erro ao duplicar no Supabase:', error);
-      });
+      syncExpenseToSupabase(duplicated, user.id);
     }
   };
 
@@ -660,6 +795,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const filteredExpenses = useMemo(() => {
     let result = [...monthExpenses];
 
+    // Filter by type (all / expense / income)
+    if (filter.type && filter.type !== 'all') {
+      result = result.filter((e) => (e.type || 'expense') === filter.type);
+    }
+
     // Filter by search text
     if (filter.search.trim()) {
       const searchLower = filter.search.toLowerCase().trim();
@@ -679,7 +819,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     // Filter by payment method
     if (filter.paymentMethod !== 'all') {
-      result = result.filter((e) => e.paymentMethod === filter.paymentMethod);
+      result = result.filter((e) => {
+        if (filter.paymentMethod === 'pix') {
+          return e.paymentMethod === 'pix' || e.paymentMethod === 'debit';
+        }
+        return e.paymentMethod === filter.paymentMethod;
+      });
     }
 
     // Sort
@@ -688,7 +833,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         case 'date-desc':
           return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt);
         case 'date-asc':
-          return a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt);
+          return a.date.localeCompare(b.date) || a.createdAt.localeCompare(a.createdAt);
         case 'amount-desc':
           return b.amount - a.amount;
         case 'amount-asc':
@@ -714,22 +859,37 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Computed Statistics for Selected Month
   const stats = useMemo<MonthStats>(() => {
-    const total = monthExpenses.reduce((sum, item) => sum + item.amount, 0);
+    const expensesList = monthExpenses.filter((e) => (e.type || 'expense') === 'expense');
+    const incomeList = monthExpenses.filter((e) => e.type === 'income');
+
+    const totalExpenses = expensesList.reduce((sum, item) => sum + item.amount, 0);
+    const totalIncome = incomeList.reduce((sum, item) => sum + item.amount, 0);
+    const netBalance = totalIncome - totalExpenses;
+    const savingsRate = totalIncome > 0 ? Math.max(0, ((totalIncome - totalExpenses) / totalIncome) * 100) : 0;
+
     const count = monthExpenses.length;
+    const expenseCount = expensesList.length;
+    const incomeCount = incomeList.length;
+
     const daysInMonth = getDaysInMonth(selectedMonth);
-    const averagePerDay = daysInMonth > 0 ? total / daysInMonth : 0;
+    const averagePerDay = daysInMonth > 0 ? totalExpenses / daysInMonth : 0;
 
     let highestExpense: Expense | null = null;
     let lowestExpense: Expense | null = null;
+    let highestIncome: Expense | null = null;
 
-    if (monthExpenses.length > 0) {
-      highestExpense = [...monthExpenses].sort((a, b) => b.amount - a.amount)[0] || null;
-      lowestExpense = [...monthExpenses].sort((a, b) => a.amount - b.amount)[0] || null;
+    if (expensesList.length > 0) {
+      highestExpense = [...expensesList].sort((a, b) => b.amount - a.amount)[0] || null;
+      lowestExpense = [...expensesList].sort((a, b) => a.amount - b.amount)[0] || null;
     }
 
-    // Category summaries
+    if (incomeList.length > 0) {
+      highestIncome = [...incomeList].sort((a, b) => b.amount - a.amount)[0] || null;
+    }
+
+    // Category summaries for expenses
     const categoryTotalsMap = new Map<string, { total: number; count: number }>();
-    monthExpenses.forEach((exp) => {
+    expensesList.forEach((exp) => {
       const current = categoryTotalsMap.get(exp.categoryId) || { total: 0, count: 0 };
       categoryTotalsMap.set(exp.categoryId, {
         total: current.total + exp.amount,
@@ -738,9 +898,35 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
 
     const categorySummaries: CategorySummary[] = sortedCategories
+      .filter((c) => (c.type || 'expense') === 'expense')
       .map((category) => {
         const data = categoryTotalsMap.get(category.id) || { total: 0, count: 0 };
-        const percentage = total > 0 ? (data.total / total) * 100 : 0;
+        const percentage = totalExpenses > 0 ? (data.total / totalExpenses) * 100 : 0;
+        return {
+          category,
+          total: data.total,
+          percentage,
+          count: data.count,
+        };
+      })
+      .filter((item) => item.total > 0)
+      .sort((a, b) => b.total - a.total);
+
+    // Category summaries for incomes
+    const incomeCategoryTotalsMap = new Map<string, { total: number; count: number }>();
+    incomeList.forEach((exp) => {
+      const current = incomeCategoryTotalsMap.get(exp.categoryId) || { total: 0, count: 0 };
+      incomeCategoryTotalsMap.set(exp.categoryId, {
+        total: current.total + exp.amount,
+        count: current.count + 1,
+      });
+    });
+
+    const incomeCategorySummaries: CategorySummary[] = sortedCategories
+      .filter((c) => c.type === 'income')
+      .map((category) => {
+        const data = incomeCategoryTotalsMap.get(category.id) || { total: 0, count: 0 };
+        const percentage = totalIncome > 0 ? (data.total / totalIncome) * 100 : 0;
         return {
           category,
           total: data.total,
@@ -752,19 +938,25 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .sort((a, b) => b.total - a.total);
 
     // Daily summaries for chart
-    const dailyMap = new Map<number, number>();
+    const dailyMap = new Map<number, { expenses: number; income: number }>();
     for (let d = 1; d <= daysInMonth; d++) {
-      dailyMap.set(d, 0);
+      dailyMap.set(d, { expenses: 0, income: 0 });
     }
 
     monthExpenses.forEach((exp) => {
       const dayNum = parseInt(exp.date.split('-')[2], 10);
       if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= daysInMonth) {
-        dailyMap.set(dayNum, (dailyMap.get(dayNum) || 0) + exp.amount);
+        const current = dailyMap.get(dayNum) || { expenses: 0, income: 0 };
+        if (exp.type === 'income') {
+          current.income += exp.amount;
+        } else {
+          current.expenses += exp.amount;
+        }
+        dailyMap.set(dayNum, current);
       }
     });
 
-    const dailySummaries: DailySummary[] = Array.from(dailyMap.entries()).map(([day, dayTotal]) => {
+    const dailySummaries: DailySummary[] = Array.from(dailyMap.entries()).map(([day, val]) => {
       const [y, m] = selectedMonth.split('-');
       const dateObj = new Date(parseInt(y, 10), parseInt(m, 10) - 1, day);
       const dayName = dateObj.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '');
@@ -772,21 +964,31 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         date: `${selectedMonth}-${String(day).padStart(2, '0')}`,
         day,
         dayName,
-        total: dayTotal,
+        total: val.expenses,
+        expenses: val.expenses,
+        income: val.income,
       };
     });
 
     const currentBudget = getMonthBudget(selectedMonth);
-    const budgetUsedPercentage = currentBudget && currentBudget > 0 ? (total / currentBudget) * 100 : null;
-    const remainingBudget = currentBudget !== null ? currentBudget - total : null;
+    const budgetUsedPercentage = currentBudget && currentBudget > 0 ? (totalExpenses / currentBudget) * 100 : null;
+    const remainingBudget = currentBudget !== null ? currentBudget - totalExpenses : null;
 
     return {
-      total,
+      total: totalExpenses,
+      totalExpenses,
+      totalIncome,
+      netBalance,
+      savingsRate,
       count,
+      expenseCount,
+      incomeCount,
       averagePerDay,
       highestExpense,
       lowestExpense,
+      highestIncome,
       categorySummaries,
+      incomeCategorySummaries,
       dailySummaries,
       budget: currentBudget,
       budgetUsedPercentage,
@@ -836,10 +1038,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   );
 };
 
-export const useFinance = () => {
+export const useFinance = (): FinanceContextType => {
   const context = useContext(FinanceContext);
   if (!context) {
-    throw new Error('useFinance deve ser utilizado dentro de um FinanceProvider');
+    throw new Error('useFinance deve ser usado dentro de um FinanceProvider');
   }
   return context;
 };

@@ -8,7 +8,6 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  ReferenceLine,
 } from 'recharts';
 import { formatCurrency, formatMonthYear } from '../../utils/formatters';
 import { BarChart3 } from 'lucide-react';
@@ -17,31 +16,29 @@ export const DailyBarChart: React.FC = () => {
   const { stats, selectedMonth, theme } = useFinance();
 
   const data = stats.dailySummaries;
-  const hasExpenses = stats.total > 0;
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const item = payload[0].payload;
       return (
         <div className="bg-slate-900/95 dark:bg-slate-800/95 text-white px-3.5 py-2.5 rounded-xl shadow-2xl border border-slate-700/80 text-xs backdrop-blur-md pointer-events-none min-w-[140px] animate-in fade-in zoom-in-95 duration-150">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <span className="font-semibold text-slate-300">
-              Dia {item.day}
-            </span>
-            <span className="text-[10px] font-bold text-slate-400 uppercase">
-              {item.dayName}
-            </span>
+          <div className="flex items-center justify-between gap-2 mb-1.5 pb-1 border-b border-slate-700/60">
+            <span className="font-bold text-slate-200">Dia {item.day}</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase">{item.dayName}</span>
           </div>
-          <p className="text-sm font-extrabold text-emerald-400">
-            {formatCurrency(item.total)}
-          </p>
-          {stats.averagePerDay > 0 && item.total > 0 && (
-            <p className="text-[10px] text-slate-400 mt-1 pt-1 border-t border-slate-700/60">
-              {item.total > stats.averagePerDay
-                ? `${((item.total / stats.averagePerDay - 1) * 100).toFixed(0)}% acima da média`
-                : `${((1 - item.total / stats.averagePerDay) * 100).toFixed(0)}% abaixo da média`}
-            </p>
-          )}
+
+          <div className="space-y-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] text-slate-300 font-medium">Gastos do dia:</span>
+              <span className="text-xs font-bold text-rose-400">
+                {formatCurrency(item.expenses ?? item.amount ?? 0)}
+              </span>
+            </div>
+
+            {(item.expenses ?? item.amount ?? 0) === 0 && (
+              <p className="text-[10px] text-slate-400 italic">Sem despesas neste dia</p>
+            )}
+          </div>
         </div>
       );
     }
@@ -54,18 +51,12 @@ export const DailyBarChart: React.FC = () => {
         <div>
           <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400" />
-            Evolução Diária de Gastos
+            Evolução Diária
           </h3>
           <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Despesas acumuladas ao longo dos dias de {formatMonthYear(selectedMonth)}
+            Gastos ao longo dos dias de {formatMonthYear(selectedMonth)}
           </p>
         </div>
-        {hasExpenses && (
-          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span className="w-3 h-0.5 bg-indigo-500 inline-block rounded" />
-            <span>Média: {formatCurrency(stats.averagePerDay)}/dia</span>
-          </div>
-        )}
       </div>
 
       <div className="h-52 sm:h-72 w-full mt-1 sm:mt-2">
@@ -87,29 +78,28 @@ export const DailyBarChart: React.FC = () => {
               tickLine={false}
               axisLine={false}
               tick={{ fill: theme === 'dark' ? '#94a3b8' : '#64748b', fontSize: 10 }}
-              tickFormatter={(value) => `R$${value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}`}
+              tickFormatter={(value) =>
+                `R$${value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}`
+              }
             />
             <Tooltip
               content={<CustomTooltip />}
-              cursor={{ fill: theme === 'dark' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(99, 102, 241, 0.08)', radius: 6 }}
+              cursor={{
+                fill: theme === 'dark' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(99, 102, 241, 0.08)',
+                radius: 6,
+              }}
               isAnimationActive={true}
               animationDuration={200}
               animationEasing="ease-out"
               wrapperStyle={{ zIndex: 40, pointerEvents: 'none' }}
             />
-            {hasExpenses && stats.averagePerDay > 0 && (
-              <ReferenceLine
-                y={stats.averagePerDay}
-                stroke="#6366f1"
-                strokeDasharray="3 3"
-                strokeWidth={1.5}
-              />
-            )}
+
             <Bar
-              dataKey="total"
-              fill="#6366f1"
+              name="Gastos"
+              dataKey="expenses"
+              fill="#6366F1"
               radius={[4, 4, 0, 0]}
-              className="cursor-pointer transition-opacity hover:opacity-80"
+              className="cursor-pointer transition-opacity hover:opacity-85"
               isAnimationActive={true}
               animationDuration={800}
               animationEasing="ease-out"

@@ -1,10 +1,20 @@
-export type PaymentMethod = 'pix' | 'credit' | 'debit' | 'cash' | 'installment';
+export type PaymentMethod =
+  | 'pix'
+  | 'credit'
+  | 'debit'
+  | 'cash'
+  | 'installment'
+  | 'transfer'
+  | 'deposit';
+
+export type TransactionType = 'expense' | 'income';
 
 export interface Category {
   id: string;
   name: string;
   color: string;
   icon: string;
+  type?: TransactionType; // 'expense' | 'income' (default 'expense')
   isDefault?: boolean;
   budgetLimit?: number; // Optional limit for this category
   module?: 'vitafin' | 'vitainvest'; // Indica a qual módulo pertence
@@ -16,6 +26,7 @@ export interface Expense {
   amount: number; // Stored as standard number, e.g., 150.50 (valor desta parcela ou valor único)
   date: string; // ISO format 'YYYY-MM-DD'
   categoryId: string;
+  type?: TransactionType; // 'expense' | 'income' (default 'expense')
   paymentMethod?: PaymentMethod;
   notes?: string;
   createdAt: string;
@@ -27,6 +38,8 @@ export interface Expense {
   totalInstallments?: number; // ex: 6
   installmentTotalAmount?: number; // ex: 1200.00
 }
+
+export type Transaction = Expense;
 
 export interface MonthBudget {
   month: string; // 'YYYY-MM'
@@ -43,6 +56,7 @@ export type SortOption =
 
 export interface ExpenseFilter {
   search: string;
+  type: 'all' | 'expense' | 'income';
   categoryId: string; // 'all' or category ID
   paymentMethod: string; // 'all' or payment method
   sortBy: SortOption;
@@ -60,15 +74,25 @@ export interface DailySummary {
   day: number;
   dayName: string;
   total: number;
+  expenses: number;
+  income: number;
 }
 
 export interface MonthStats {
-  total: number;
+  total: number; // totalExpenses (mantido para compatibilidade)
+  totalExpenses: number;
+  totalIncome: number;
+  netBalance: number; // Saldo / Dinheiro Salvo (totalIncome - totalExpenses)
+  savingsRate: number; // Taxa de Poupança / Economia (% das receitas que sobrou)
   count: number;
+  expenseCount: number;
+  incomeCount: number;
   averagePerDay: number;
   highestExpense: Expense | null;
   lowestExpense: Expense | null;
+  highestIncome: Expense | null;
   categorySummaries: CategorySummary[];
+  incomeCategorySummaries: CategorySummary[];
   dailySummaries: DailySummary[];
   budget: number | null;
   budgetUsedPercentage: number | null;

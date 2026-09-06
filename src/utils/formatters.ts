@@ -163,9 +163,11 @@ export function getDaysInMonth(yearMonth: string): number {
  * Mapeamento e label de métodos de pagamento
  */
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, { label: string; icon: string }> = {
-  pix: { label: 'PIX', icon: 'Zap' },
-  credit: { label: 'Cartão de Crédito', icon: 'CreditCard' },
-  debit: { label: 'Cartão de Débito', icon: 'CreditCard' },
+  pix: { label: 'Pix/Débito', icon: 'Zap' },
+  credit: { label: 'Cartão', icon: 'CreditCard' },
+  debit: { label: 'Pix/Débito', icon: 'CreditCard' },
   cash: { label: 'Dinheiro', icon: 'Banknote' },
-  installment: { label: 'Parcelado', icon: 'Layers' },
+  installment: { label: 'Parcelamento', icon: 'Layers' },
+  transfer: { label: 'Transferência', icon: 'ArrowRightLeft' },
+  deposit: { label: 'Depósito', icon: 'Landmark' },
 };

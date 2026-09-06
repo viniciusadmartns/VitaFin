@@ -13,15 +13,22 @@ import { ExpenseList } from './components/expenses/ExpenseList';
 import { ExpenseFormModal } from './components/expenses/ExpenseFormModal';
 import { BudgetModal } from './components/budget/BudgetModal';
 import { CategoryManagerModal } from './components/categories/CategoryManagerModal';
+import { TransactionType } from './types/finance';
 
 const FinanceDashboard: React.FC = () => {
   const [isExpenseModalOpen, setIsExpenseModalOpen] = React.useState(false);
+  const [modalDefaultType, setModalDefaultType] = React.useState<TransactionType>('expense');
   const [isBudgetModalOpen, setIsBudgetModalOpen] = React.useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = React.useState(false);
 
+  const handleOpenNewModal = (type: TransactionType = 'expense') => {
+    setModalDefaultType(type);
+    setIsExpenseModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 flex flex-col transition-colors">
-      <Header onOpenNewExpense={() => setIsExpenseModalOpen(true)} />
+      <Header onOpenNewExpense={() => handleOpenNewModal('expense')} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-3.5 sm:space-y-6">
         <MonthSelector />
@@ -36,13 +43,13 @@ const FinanceDashboard: React.FC = () => {
           </div>
         </div>
 
-        <ExpenseList onOpenNewExpense={() => setIsExpenseModalOpen(true)} />
+        <ExpenseList onOpenNewExpense={handleOpenNewModal} />
       </main>
 
       <footer className="border-t border-slate-200/80 dark:border-slate-800/80 py-5 sm:py-6 mt-8 sm:mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p>
-            <strong>VitaFin</strong> — Gestão Financeira Pessoal & Controle de Despesas Mensais
+            <strong>VitaFin</strong> — Gestão Financeira Inteligente & Controle de Gastos e Receitas
           </p>
           <p className="text-[11px] text-slate-400 dark:text-slate-500">
             Sincronizado na nuvem (Supabase) e com suporte offline local.
@@ -53,6 +60,7 @@ const FinanceDashboard: React.FC = () => {
       <ExpenseFormModal
         isOpen={isExpenseModalOpen}
         onClose={() => setIsExpenseModalOpen(false)}
+        defaultType={modalDefaultType}
       />
 
       <BudgetModal

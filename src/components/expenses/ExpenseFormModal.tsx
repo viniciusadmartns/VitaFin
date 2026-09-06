@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import { Expense, PaymentMethod, Category } from '../../types/finance';
+import { Expense, PaymentMethod, Category, TransactionType } from '../../types/finance';
 import { useFinance } from '../../context/FinanceContext';
 import {
   getTodayDateString,
@@ -17,37 +17,40 @@ import {
   DollarSign,
   Tag,
   CreditCard,
-  FileText,
   PlusCircle,
   Sparkles,
   Layers,
   Settings2,
   CalendarRange,
   Calculator,
+  TrendingDown,
+  TrendingUp,
 } from 'lucide-react';
 
 interface ExpenseFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   expenseToEdit?: Expense | null;
+  defaultType?: TransactionType;
 }
 
 export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
   isOpen,
   onClose,
   expenseToEdit,
+  defaultType = 'expense',
 }) => {
   const { categories, addExpense, addInstallmentExpenses, updateExpense, selectedMonth } =
     useFinance();
 
+  const [transactionType, setTransactionType] = useState<TransactionType>(defaultType);
   const [title, setTitle] = useState('');
   const [amountStr, setAmountStr] = useState('');
   const [date, setDate] = useState(getTodayDateString());
   const [categoryId, setCategoryId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('pix');
-  const [notes, setNotes] = useState('');
 
-  // Parcelamento States
+  // Parcelamento States (exclusivo para despesas)
   const [installmentsCount, setInstallmentsCount] = useState<number>(2);
   const [installmentInputMode, setInstallmentInputMode] = useState<'total' | 'installment'>('total');
   const [showInstallmentSchedule, setShowInstallmentSchedule] = useState<boolean>(false);
@@ -63,34 +66,81 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
   const [isNewCategoryModalOpen, setIsNewCategoryModalOpen] = useState(false);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
 
+  // Categorias filtradas pelo tipo da transação atual
+  const availableCategories = categories.filter(
+    (c) => (c.type || 'expense') === transactionType
+  );
+
+  const prevIsOpenRef = React.useRef(false);
+  const prevExpenseToEditIdRef = React.useRef<string | undefined>(undefined);
+
   useEffect(() => {
-    if (expenseToEdit) {
-      setTitle(expenseToEdit.title);
-      setAmountStr(expenseToEdit.amount.toString().replace('.', ','));
-      setDate(expenseToEdit.date);
-      setCategoryId(expenseToEdit.categoryId);
-      setPaymentMethod(expenseToEdit.paymentMethod || 'pix');
-      setNotes(expenseToEdit.notes || '');
-      setInstallmentsCount(expenseToEdit.totalInstallments || 2);
-      setInstallmentInputMode('installment');
-    } else {
-      setTitle('');
-      setAmountStr('');
-      const today = getTodayDateString();
-      if (today.startsWith(selectedMonth)) {
-        setDate(today);
+    const justOpened = isOpen && !prevIsOpenRef.current;
+    const changedExpense = expenseToEdit?.id !== prevExpenseToEditIdRef.current;
+
+    prevIsOpenRef.current = isOpen;
+    prevExpenseToEditIdRef.current = expenseToEdit?.id;
+
+    if (justOpened || (isOpen && changedExpense)) {
+      if (expenseToEdit) {
+        const type = expenseToEdit.type || 'expense';
+        setTransactionType(type);
+        setTitle(expenseToEdit.title);
+        setAmountStr(expenseToEdit.amount.toString().replace('.', ','));
+        setDate(expenseToEdit.date);
+        setCategoryId(expenseToEdit.categoryId);
+        setPaymentMethod(expenseToEdit.paymentMethod || 'pix');
+        setInstallmentsCount(expenseToEdit.totalInstallments || 2);
+        setInstallmentInputMode('installment');
       } else {
-        setDate(`${selectedMonth}-01`);
+        setTransactionType(defaultType);
+        setTitle('');
+        setAmountStr('');
+        const today = getTodayDateString();
+        if (today.startsWith(selectedMonth)) {
+          setDate(today);
+        } else {
+          setDate(`${selectedMonth}-01`);
+        }
+        const initialCat = categories.find((c) => (c.type || 'expense') === defaultType);
+        setCategoryId(initialCat ? initialCat.id : (categories[0]?.id || ''));
+        setPaymentMethod('pix');
+        setInstallmentsCount(2);
+        setInstallmentInputMode('total');
       }
-      setCategoryId(categories.length > 0 ? categories[0].id : '');
-      setPaymentMethod('pix');
-      setNotes('');
-      setInstallmentsCount(2);
-      setInstallmentInputMode('total');
+      setErrors({});
+      setShowInstallmentSchedule(false);
     }
-    setErrors({});
-    setShowInstallmentSchedule(false);
-  }, [expenseToEdit, isOpen, categories, selectedMonth]);
+  }, [expenseToEdit, isOpen, defaultType, selectedMonth, categories]);
+
+  // Se a categoria selecionada ficar incompatível ou vazia ao carregar, seleciona a primeira do tipo
+  useEffect(() => {
+    if (!isOpen) return;
+    const matching = categories.filter((c) => (c.type || 'expense') === transactionType);
+    if (matching.length > 0 && (!categoryId || !matching.some((c) => c.id === categoryId))) {
+      setCategoryId(matching[0].id);
+    }
+  }, [isOpen, categories, transactionType, categoryId]);
+
+  // Ao alternar o tipo (Despesa / Receita), seleciona a primeira categoria compatível se a atual for incompatível
+  const handleTypeChange = (newType: TransactionType) => {
+    setTransactionType(newType);
+    if (newType === 'income') {
+      if (paymentMethod === 'installment' || paymentMethod === 'credit' || paymentMethod === 'debit') {
+        setPaymentMethod('pix');
+      }
+    }
+    const currentCatObj = categories.find((c) => c.id === categoryId);
+    if (!currentCatObj || (currentCatObj.type || 'expense') !== newType) {
+      const firstMatching = categories.find((c) => (c.type || 'expense') === newType);
+      if (firstMatching) {
+        setCategoryId(firstMatching.id);
+      }
+    }
+    if (errors.categoryId) {
+      setErrors((prev) => ({ ...prev, categoryId: undefined }));
+    }
+  };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -111,7 +161,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
 
   // Cálculo das parcelas e total
   const rawInputNumber = parseFloat(amountStr.replace(',', '.')) || 0;
-  const isInstallment = paymentMethod === 'installment';
+  const isInstallment = transactionType === 'expense' && paymentMethod === 'installment';
 
   const computedTotalAmount = isInstallment
     ? installmentInputMode === 'total'
@@ -130,7 +180,9 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
     const newErrors: typeof errors = {};
 
     if (!title.trim()) {
-      newErrors.title = 'Informe o nome ou descrição do gasto.';
+      newErrors.title = transactionType === 'income'
+        ? 'Informe a descrição ou fonte da receita.'
+        : 'Informe o nome ou descrição do gasto.';
     }
 
     if (isNaN(rawInputNumber) || rawInputNumber <= 0) {
@@ -138,11 +190,11 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
     }
 
     if (!categoryId) {
-      newErrors.categoryId = 'Selecione o tipo de gasto.';
+      newErrors.categoryId = 'Selecione uma categoria.';
     }
 
     if (!date) {
-      newErrors.date = 'Informe a data do gasto.';
+      newErrors.date = 'Informe a data do lançamento.';
     }
 
     if (isInstallment && (!installmentsCount || installmentsCount < 2 || installmentsCount > 72)) {
@@ -160,8 +212,9 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
         amount: isInstallment ? computedPerInstallmentAmount : rawInputNumber,
         date,
         categoryId,
-        paymentMethod,
-        notes: notes.trim() || undefined,
+        type: transactionType,
+        paymentMethod: isIncome ? undefined : paymentMethod,
+        notes: expenseToEdit.notes,
         totalInstallments: isInstallment ? installmentsCount : undefined,
         installmentTotalAmount: isInstallment ? computedTotalAmount : undefined,
       });
@@ -173,8 +226,8 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             amount: computedPerInstallmentAmount,
             date,
             categoryId,
+            type: 'expense',
             paymentMethod: 'installment',
-            notes: notes.trim() || undefined,
           },
           installmentsCount,
           computedTotalAmount
@@ -183,10 +236,10 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
         addExpense({
           title: title.trim(),
           amount: rawInputNumber,
-          date,
+          date: (!isIncome && paymentMethod === 'credit') ? addMonthsToDate(date, 1) : date,
           categoryId,
-          paymentMethod,
-          notes: notes.trim() || undefined,
+          type: transactionType,
+          paymentMethod: isIncome ? undefined : paymentMethod,
         });
       }
     }
@@ -198,19 +251,66 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
     setCategoryId(newCat.id);
   };
 
-  const quickInstallmentPresets = [2, 3, 4, 5, 6, 10, 12, 18, 24];
+  const quickInstallmentPresets = [2, 3, 4, 5, 6, 10, 12];
+
+  const expensePaymentMethods: { id: PaymentMethod; label: string }[] = [
+    { id: 'pix', label: 'Pix/Débito' },
+    { id: 'credit', label: 'Cartão' },
+    { id: 'installment', label: 'Parcelamento' },
+  ];
+
+  const isIncome = transactionType === 'income';
 
   return (
     <>
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title={expenseToEdit ? 'Editar Gasto' : 'Novo Lançamento de Gasto'}
-        subtitle="Preencha as informações para registrar sua despesa"
+        title={
+          expenseToEdit
+            ? isIncome ? 'Editar Receita' : 'Editar Gasto'
+            : isIncome ? 'Nova Receita / Entrada' : 'Novo Lançamento de Gasto'
+        }
+        subtitle={
+          isIncome
+            ? 'Registre salários, rendimentos, freelances ou outras entradas'
+            : 'Preencha as informações para registrar sua despesa do mês'
+        }
         maxWidth="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
-          {/* Banner de Total em Destaque no Topo (Especial para Parcelamento ou Visão Geral) */}
+          {/* Segmented Switch: Despesa vs Receita */}
+          {!expenseToEdit && (
+            <div className="grid grid-cols-2 p-1 bg-slate-100 dark:bg-slate-800/90 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+              <button
+                type="button"
+                onClick={() => handleTypeChange('expense')}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  !isIncome
+                    ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <TrendingDown className="w-4 h-4 text-rose-500" />
+                <span>Despesa (Saída)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTypeChange('income')}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                  isIncome
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <TrendingUp className="w-4 h-4 text-emerald-500" />
+                <span>Receita (Entrada)</span>
+              </button>
+            </div>
+          )}
+
+          {/* Banner de Total em Destaque no Topo (Especial para Parcelamento) */}
           {isInstallment && (
             <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 p-3.5 sm:p-4 rounded-2xl text-white shadow-md">
               <div className="flex items-center justify-between gap-2 mb-1">
@@ -239,12 +339,14 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             </div>
           )}
 
-          {/* Valor do Gasto */}
+          {/* Valor da Transação */}
           <div className="bg-slate-50 dark:bg-slate-800/60 p-3.5 sm:p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                {isInstallment
+                <DollarSign className={`w-4 h-4 ${isIncome ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-600 dark:text-slate-300'}`} />
+                {isIncome
+                  ? 'Valor Recebido (R$)'
+                  : isInstallment
                   ? installmentInputMode === 'total'
                     ? 'Valor Total da Compra (R$)'
                     : 'Valor da Parcela Mensal (R$)'
@@ -290,7 +392,9 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                 value={amountStr}
                 onChange={handleAmountChange}
                 placeholder="0,00"
-                className="w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white placeholder-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner"
+                className={`w-full pl-11 sm:pl-12 pr-4 py-2.5 sm:py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white placeholder-slate-300 focus:outline-none focus:ring-2 shadow-inner ${
+                  isIncome ? 'focus:ring-emerald-500 text-emerald-600 dark:text-emerald-400' : 'focus:ring-indigo-500'
+                }`}
                 autoFocus={!expenseToEdit}
               />
             </div>
@@ -299,41 +403,35 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             )}
           </div>
 
-          {/* Forma de Pagamento */}
-          <div>
-            <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
-              <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
-              Forma de Pagamento
-            </label>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 sm:gap-2">
-              {(
-                [
-                  { id: 'pix', label: 'PIX' },
-                  { id: 'credit', label: 'Crédito' },
-                  { id: 'debit', label: 'Débito' },
-                  { id: 'cash', label: 'Dinheiro' },
-                  { id: 'installment', label: 'Parcelado' },
-                ] as const
-              ).map((method) => {
-                const isSelected = paymentMethod === method.id;
-                return (
-                  <button
-                    key={method.id}
-                    type="button"
-                    onClick={() => setPaymentMethod(method.id)}
-                    className={`py-2 px-2 rounded-xl text-xs font-semibold border text-center transition-all flex items-center justify-center gap-1 min-h-[38px] ${
-                      isSelected
-                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-sm'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    {method.id === 'installment' && <Layers className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
-                    <span>{method.label}</span>
-                  </button>
-                );
-              })}
+          {/* Forma de Pagamento (Exclusivo para Despesas) */}
+          {!isIncome && (
+            <div>
+              <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
+                Forma de Pagamento
+              </label>
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                {expensePaymentMethods.map((method) => {
+                  const isSelected = paymentMethod === method.id;
+                  return (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => setPaymentMethod(method.id)}
+                      className={`py-2 px-2 rounded-xl text-xs font-semibold border text-center transition-all flex items-center justify-center gap-1 min-h-[38px] ${
+                        isSelected
+                          ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-transparent shadow-sm'
+                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {method.id === 'installment' && <Layers className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
+                      <span>{method.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Configuração Especial de Parcelamento */}
           {isInstallment && (
@@ -352,8 +450,8 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                 </button>
               </div>
 
-              {/* Botões rápidos de parcelas */}
-              <div className="flex flex-wrap gap-1.5">
+              {/* Botões rápidos de parcelas com campo Outro no lugar do 18x/24x */}
+              <div className="flex flex-wrap items-center gap-1.5">
                 {quickInstallmentPresets.map((num) => (
                   <button
                     key={num}
@@ -369,8 +467,8 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                   </button>
                 ))}
 
-                <div className="flex items-center gap-1.5 pl-1 sm:pl-2">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Outro:</span>
+                <div className="flex items-center gap-1.5 pl-1">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">Outro:</span>
                   <input
                     type="number"
                     inputMode="numeric"
@@ -387,11 +485,11 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
               {showInstallmentSchedule && (
                 <div className="mt-2.5 pt-2.5 border-t border-emerald-200 dark:border-emerald-800/80">
                   <span className="text-[11px] font-bold text-emerald-900 dark:text-emerald-200 block mb-2">
-                    Lançamentos gerados automaticamente:
+                    Lançamentos gerados a partir do próximo mês:
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto custom-scrollbar p-0.5">
                     {Array.from({ length: Math.min(installmentsCount, 24) }).map((_, idx) => {
-                      const installmentDate = addMonthsToDate(date, idx);
+                      const installmentDate = addMonthsToDate(date, idx + 1);
                       return (
                         <div
                           key={idx}
@@ -420,11 +518,12 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             </div>
           )}
 
-          {/* Nome do Gasto */}
+          {/* Nome do Lançamento */}
           <div>
             <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
-              Nome do Gasto / Descrição <span className="text-rose-500">*</span>
+              {isIncome ? 'Nome da Receita' : 'Nome do Gasto'}{' '}
+              <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -433,7 +532,11 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                 setTitle(e.target.value);
                 if (errors.title) setErrors((prev) => ({ ...prev, title: undefined }));
               }}
-              placeholder="Ex: Supermercado, Smartphone, Notebook, Gasolina..."
+              placeholder={
+                isIncome
+                  ? 'Ex: Salário empresa, Dividendos FII, Freelance consultoria, Venda...'
+                  : 'Ex: Supermercado, Smartphone, Notebook, Gasolina...'
+              }
               className="w-full px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm transition-all"
             />
             {errors.title && (
@@ -441,12 +544,18 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             )}
           </div>
 
-          {/* Data do Gasto com atalhos */}
+          {/* Data do Lançamento com atalhos */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
-                {isInstallment ? 'Data da 1ª Parcela' : 'Data do Gasto'}{' '}
+                {isInstallment
+                  ? 'Data da Compra'
+                  : isIncome
+                  ? 'Data do Recebimento'
+                  : paymentMethod === 'credit'
+                  ? 'Data da Compra'
+                  : 'Data do Gasto'}{' '}
                 <span className="text-rose-500">*</span>
               </label>
               <div className="flex items-center gap-1.5">
@@ -475,24 +584,38 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
               }}
               className="w-full px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm transition-all cursor-pointer"
             />
+            {/* Informação visual de vencimento / lançamento no mês seguinte */}
+            {!isIncome && paymentMethod === 'credit' && (
+              <p className="text-[11px] text-indigo-600 dark:text-indigo-400 mt-1 font-medium flex items-center gap-1">
+                <span>💳 Lançamento na fatura do mês seguinte:</span>
+                <strong>{formatDate(addMonthsToDate(date, 1))}</strong>
+              </p>
+            )}
+            {!isIncome && isInstallment && (
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 font-medium flex items-center gap-1">
+                <span>🗓️ 1ª parcela lançada no mês seguinte:</span>
+                <strong>{formatDate(addMonthsToDate(date, 1))}</strong>
+              </p>
+            )}
             {errors.date && (
               <p className="text-rose-500 text-xs mt-1.5 font-medium">{errors.date}</p>
             )}
           </div>
 
-          {/* Tipo de Gasto (Categoria) */}
+          {/* Categoria */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                 <Tag className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
-                Tipo de Gasto <span className="text-rose-500">*</span>
+                {isIncome ? 'Categoria de Receita' : 'Categoria de Despesa'}{' '}
+                <span className="text-rose-500">*</span>
               </label>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setIsCategoryManagerOpen(true)}
                   className="text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 flex items-center gap-1"
-                  title="Gerenciar, editar e excluir tipos de gasto"
+                  title="Gerenciar categorias"
                 >
                   <Settings2 className="w-3.5 h-3.5" />
                   <span className="hidden xs:inline">Gerenciar</span>
@@ -503,14 +626,14 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                   className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 flex items-center gap-1"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
-                  <span>Novo</span>
+                  <span>Nova</span>
                 </button>
               </div>
             </div>
 
             {/* Visual Category Picker Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 sm:gap-2 max-h-44 overflow-y-auto p-1 custom-scrollbar border border-slate-100 dark:border-slate-800 rounded-xl">
-              {categories.map((cat) => {
+              {availableCategories.map((cat) => {
                 const isSelected = categoryId === cat.id;
                 return (
                   <button
@@ -552,29 +675,25 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             )}
           </div>
 
-          {/* Observações / Notas */}
-          <div>
-            <label className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200 mb-1.5 flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
-              Observações (Opcional)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Detalhes adicionais, garantia, local de compra..."
-              rows={2}
-              className="w-full px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs sm:text-sm transition-all resize-none"
-            />
-          </div>
-
           {/* Footer Actions */}
           <div className="flex items-center justify-end gap-2.5 sm:gap-3 pt-3 sm:pt-4 border-t border-slate-100 dark:border-slate-800">
             <Button type="button" variant="secondary" size="sm" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" variant="primary" size="sm" className="bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500">
+            <Button
+              type="submit"
+              variant={isIncome ? 'success' : 'primary'}
+              size="sm"
+              className={
+                isIncome
+                  ? 'bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500'
+                  : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500'
+              }
+            >
               {expenseToEdit
                 ? 'Salvar Alterações'
+                : isIncome
+                ? 'Registrar Receita'
                 : isInstallment
                 ? `Lançar ${installmentsCount} Parcelas`
                 : 'Registrar Gasto'}
@@ -587,6 +706,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
       <CategoryModal
         isOpen={isNewCategoryModalOpen}
         onClose={() => setIsNewCategoryModalOpen(false)}
+        initialType={transactionType}
         onSaved={handleCategoryCreated}
       />
 

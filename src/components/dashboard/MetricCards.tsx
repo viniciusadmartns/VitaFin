@@ -2,9 +2,9 @@ import React from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import { formatCurrency } from '../../utils/formatters';
 import {
+  TrendingUp,
   TrendingDown,
-  Calendar,
-  Zap,
+  PiggyBank,
   Target,
   ArrowUpRight,
 } from 'lucide-react';
@@ -14,99 +14,59 @@ interface MetricCardsProps {
 }
 
 export const MetricCards: React.FC<MetricCardsProps> = ({ onOpenBudgetModal }) => {
-  const { stats, getCategoryById } = useFinance();
+  const { stats } = useFinance();
 
-  const highestCat = stats.highestExpense
-    ? getCategoryById(stats.highestExpense.categoryId)
-    : null;
+  const isNetPositive = stats.netBalance >= 0;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-      {/* 1. Total Gasto no Mês */}
+      {/* 1. Entradas de Valores (Receitas) */}
       <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group flex flex-col justify-between">
-        <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 w-full" />
+        <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500 w-full" />
         <div className="flex items-center justify-between mb-2">
           <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
-            Total do Mês
+            Entradas (Receitas)
           </span>
-          <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 flex-shrink-0">
+          <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0">
+            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+        </div>
+        <div className="space-y-0.5 sm:space-y-1">
+          <h3 className="text-lg sm:text-2xl lg:text-3xl font-black text-emerald-600 dark:text-emerald-400 tabular-nums tracking-tight truncate">
+            {formatCurrency(stats.totalIncome)}
+          </h3>
+          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+            {stats.incomeCount} {stats.incomeCount === 1 ? 'entrada registrada' : 'entradas registradas'}
+          </p>
+        </div>
+      </div>
+
+      {/* 2. Saídas do Mês (Despesas) */}
+      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group flex flex-col justify-between">
+        <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-rose-500 to-orange-500 w-full" />
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+            Saídas (Despesas)
+          </span>
+          <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-rose-50 dark:bg-rose-950/60 flex items-center justify-center text-rose-600 dark:text-rose-400 flex-shrink-0">
             <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
         </div>
         <div className="space-y-0.5 sm:space-y-1">
           <h3 className="text-lg sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight truncate">
-            {formatCurrency(stats.total)}
+            {formatCurrency(stats.totalExpenses)}
           </h3>
           <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
-            {stats.count} {stats.count === 1 ? 'despesa' : 'despesas'}
+            {stats.expenseCount} {stats.expenseCount === 1 ? 'despesa' : 'despesas'} • Média {formatCurrency(stats.averagePerDay)}/dia
           </p>
         </div>
       </div>
 
-      {/* 2. Média Diária de Gastos */}
-      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group flex flex-col justify-between">
-        <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500 w-full" />
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
-            Média por Dia
-          </span>
-          <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 flex-shrink-0">
-            <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-        </div>
-        <div className="space-y-0.5 sm:space-y-1">
-          <h3 className="text-lg sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight truncate">
-            {formatCurrency(stats.averagePerDay)}
-          </h3>
-          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
-            Por dia no mês
-          </p>
-        </div>
-      </div>
-
-      {/* 3. Maior Gasto do Mês */}
-      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group flex flex-col justify-between">
-        <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500 w-full" />
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
-            Maior Despesa
-          </span>
-          <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 flex items-center justify-center text-amber-600 dark:text-amber-400 flex-shrink-0">
-            <Zap className="w-4 h-4 sm:w-5 sm:h-5" />
-          </div>
-        </div>
-        <div className="space-y-0.5 sm:space-y-1">
-          {stats.highestExpense ? (
-            <>
-              <h3 className="text-lg sm:text-2xl lg:text-3xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight truncate">
-                {formatCurrency(stats.highestExpense.amount)}
-              </h3>
-              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1" title={stats.highestExpense.title}>
-                {highestCat && (
-                  <span
-                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: highestCat.color }}
-                  />
-                )}
-                <span className="truncate">{stats.highestExpense.title}</span>
-              </p>
-            </>
-          ) : (
-            <>
-              <h3 className="text-lg sm:text-2xl font-bold text-slate-400 dark:text-slate-600">
-                -
-              </h3>
-              <p className="text-[10px] sm:text-xs text-slate-400">Nenhum gasto</p>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* 4. Orçamento / Meta Mensal */}
+      {/* 3. Orçamento / Meta Mensal */}
       <div
         onClick={onOpenBudgetModal}
         className="bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group cursor-pointer hover:border-indigo-500/60 transition-all flex flex-col justify-between"
-        title="Clique para definir ou alterar o orçamento deste mês"
+        title="Clique para definir ou alterar o orçamento de gastos deste mês"
       >
         <div
           className={`absolute top-0 left-0 h-1 w-full ${
@@ -182,6 +142,63 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ onOpenBudgetModal }) =
               </p>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* 4. Dinheiro Salvo (Saldo / Economia) */}
+      <div className="bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group flex flex-col justify-between">
+        <div
+          className={`absolute top-0 left-0 h-1 w-full ${
+            isNetPositive
+              ? 'bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500'
+              : 'bg-gradient-to-r from-rose-500 to-amber-500'
+          }`}
+        />
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 truncate">
+            Dinheiro Salvo
+          </span>
+          <div
+            className={`w-7 h-7 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+              isNetPositive
+                ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-600 dark:text-teal-400'
+                : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+            }`}
+          >
+            <PiggyBank className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+        </div>
+        <div className="space-y-0.5 sm:space-y-1">
+          <h3
+            className={`text-lg sm:text-2xl lg:text-3xl font-black tabular-nums tracking-tight truncate ${
+              isNetPositive
+                ? 'text-teal-600 dark:text-teal-400'
+                : 'text-rose-600 dark:text-rose-400'
+            }`}
+          >
+            {isNetPositive ? '+ ' : '- '}
+            {formatCurrency(Math.abs(stats.netBalance))}
+          </h3>
+          <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate flex items-center gap-1">
+            {stats.totalIncome > 0 ? (
+              isNetPositive ? (
+                <>
+                  <span className="inline-block px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[9px] sm:text-[10px]">
+                    {stats.savingsRate.toFixed(0)}% salvo
+                  </span>
+                  <span className="truncate">das receitas</span>
+                </>
+              ) : (
+                <span className="text-rose-500 dark:text-rose-400 font-medium truncate">
+                  Gastos superaram receitas
+                </span>
+              )
+            ) : stats.totalExpenses > 0 ? (
+              <span className="text-slate-400 truncate">Sem receitas cadastradas</span>
+            ) : (
+              <span className="text-slate-400 truncate">Mês sem movimentações</span>
+            )}
+          </p>
         </div>
       </div>
     </div>

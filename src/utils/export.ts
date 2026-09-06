@@ -2,7 +2,7 @@ import { Category, Expense, MonthBudget } from '../types/finance';
 import { formatDate } from './formatters';
 
 /**
- * Exporta os gastos filtrados ou do mês para formato CSV compatível com Excel
+ * Exporta os lançamentos filtrados ou do mês para formato CSV compatível com Excel
  */
 export function exportExpensesToCSV(
   expenses: Expense[],
@@ -11,23 +11,36 @@ export function exportExpensesToCSV(
 ): void {
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
-  const headers = ['Data', 'Nome do Gasto', 'Categoria', 'Valor (R$)', 'Forma de Pagamento', 'Parcelamento', 'Observações'];
+  const headers = [
+    'Data',
+    'Tipo',
+    'Descrição',
+    'Categoria',
+    'Valor (R$)',
+    'Forma de Pagto/Recebimento',
+    'Parcelamento',
+    'Observações',
+  ];
 
   const rows = expenses.map((exp) => {
-    const categoryName = categoryMap.get(exp.categoryId) || 'Não categorizado';
+    const isIncome = exp.type === 'income';
+    const categoryName = categoryMap.get(exp.categoryId) || (isIncome ? 'Receitas' : 'Geral');
     const cleanNotes = (exp.notes || '').replace(/"/g, '""');
     const cleanTitle = exp.title.replace(/"/g, '""');
     const formattedAmount = exp.amount.toFixed(2).replace('.', ',');
-    const installmentInfo = exp.installmentNumber && exp.totalInstallments
-      ? `${exp.installmentNumber}/${exp.totalInstallments}`
-      : '-';
+    const installmentInfo =
+      exp.installmentNumber && exp.totalInstallments
+        ? `${exp.installmentNumber}/${exp.totalInstallments}`
+        : '-';
 
-    const paymentLabel = exp.paymentMethod === 'installment'
-      ? 'PARCELADO'
-      : exp.paymentMethod?.toUpperCase() || 'NÃO INFORMADO';
+    const paymentLabel =
+      exp.paymentMethod === 'installment'
+        ? 'PARCELADO'
+        : exp.paymentMethod?.toUpperCase() || 'NÃO INFORMADO';
 
     return [
       formatDate(exp.date),
+      isIncome ? 'RECEITA' : 'DESPESA',
       `"${cleanTitle}"`,
       `"${categoryName}"`,
       `"${formattedAmount}"`,
@@ -43,7 +56,10 @@ export function exportExpensesToCSV(
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
-  link.setAttribute('download', `gastos_vitafin_${monthLabel.toLowerCase().replace(/\s+/g, '_')}.csv`);
+  link.setAttribute(
+    'download',
+    `lancamentos_vitafin_${monthLabel.toLowerCase().replace(/\s+/g, '_')}.csv`
+  );
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -99,6 +115,8 @@ export function validateAndParseBackup(jsonText: string): {
 
     return { categories, expenses, budgets };
   } catch {
-    throw new Error('Falha ao processar arquivo de backup. Verifique se o arquivo JSON é válido.');
+    throw new Error(
+      'Falha ao processar arquivo de backup. Verifique se o arquivo JSON é válido.'
+    );
   }
 }

@@ -3,7 +3,7 @@ import { Expense } from '../../types/finance';
 import { useFinance } from '../../context/FinanceContext';
 import { formatCurrency, formatDate, PAYMENT_METHOD_LABELS } from '../../utils/formatters';
 import { renderCategoryIcon } from '../../utils/icons';
-import { Edit3, Trash2, Copy, MoreVertical, FileText, Layers } from 'lucide-react';
+import { Edit3, Trash2, Copy, MoreVertical, FileText, Layers, TrendingUp } from 'lucide-react';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
@@ -20,11 +20,13 @@ export const ExpenseItem: React.FC<ExpenseItemProps> = ({ expense, onEdit }) => 
   const [isInstallmentDeleteModalOpen, setIsInstallmentDeleteModalOpen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
 
+  const isIncome = expense.type === 'income';
+
   const category = getCategoryById(expense.categoryId) || {
     id: 'unknown',
-    name: 'Geral',
-    color: '#64748b',
-    icon: 'more-horizontal',
+    name: isIncome ? 'Outras Receitas' : 'Geral',
+    color: isIncome ? '#10B981' : '#64748b',
+    icon: isIncome ? 'banknote' : 'more-horizontal',
   };
 
   const paymentInfo = expense.paymentMethod
@@ -32,6 +34,10 @@ export const ExpenseItem: React.FC<ExpenseItemProps> = ({ expense, onEdit }) => 
     : null;
 
   const isInstallment = !!expense.installmentGroupId;
+
+  const displayTitle = isInstallment && expense.installmentNumber
+    ? expense.title.replace(/\s*\(\d+\/\d+\)$/, '')
+    : expense.title;
 
   const handleDeleteClick = () => {
     if (isInstallment) {
@@ -59,19 +65,27 @@ export const ExpenseItem: React.FC<ExpenseItemProps> = ({ expense, onEdit }) => 
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 <h4 className="font-semibold text-slate-900 dark:text-white text-xs sm:text-base truncate max-w-[140px] xs:max-w-xs sm:max-w-md">
-                  {expense.title}
+                  {displayTitle}
                 </h4>
+
+                {/* Income Badge */}
+                {isIncome && (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300">
+                    <TrendingUp className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                    Receita
+                  </span>
+                )}
 
                 {/* Parcelamento Badge */}
                 {isInstallment && expense.installmentNumber && expense.totalInstallments && (
-                  <span className="inline-flex items-center gap-0.5 sm:gap-1 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                    <Layers className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-600 dark:text-emerald-400" />
+                  <span className="inline-flex items-center gap-0.5 sm:gap-1 text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                    <Layers className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-indigo-600 dark:text-indigo-400" />
                     {expense.installmentNumber}/{expense.totalInstallments}
                   </span>
                 )}
 
-                {/* Payment Method Badge */}
-                {paymentInfo && !isInstallment && (
+                {/* Payment Method Badge (apenas para despesas) */}
+                {paymentInfo && !isInstallment && !isIncome && (
                   <span className="inline-flex items-center text-[9px] sm:text-[10px] font-semibold px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
                     {paymentInfo.label}
                   </span>
@@ -120,8 +134,15 @@ export const ExpenseItem: React.FC<ExpenseItemProps> = ({ expense, onEdit }) => 
 
           {/* Right side: Amount & Action Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
-            <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-base lg:text-lg tabular-nums">
-              - {formatCurrency(expense.amount)}
+            <span
+              className={`font-black text-xs sm:text-base lg:text-lg tabular-nums ${
+                isIncome
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-slate-900 dark:text-white'
+              }`}
+            >
+              {isIncome ? '+ ' : '- '}
+              {formatCurrency(expense.amount)}
             </span>
 
             {/* Desktop Action Buttons */}
@@ -130,7 +151,7 @@ export const ExpenseItem: React.FC<ExpenseItemProps> = ({ expense, onEdit }) => 
                 type="button"
                 onClick={() => duplicateExpense(expense.id)}
                 className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg transition-colors"
-                title="Duplicar gasto"
+                title={isIncome ? 'Duplicar receita' : 'Duplicar gasto'}
               >
                 <Copy className="w-4 h-4" />
               </button>
@@ -138,7 +159,7 @@ export const ExpenseItem: React.FC<ExpenseItemProps> = ({ expense, onEdit }) => 
                 type="button"
                 onClick={() => onEdit(expense)}
                 className="p-1.5 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg transition-colors"
-                title="Editar gasto"
+                title={isIncome ? 'Editar receita' : 'Editar gasto'}
               >
                 <Edit3 className="w-4 h-4" />
               </button>
@@ -146,7 +167,7 @@ export const ExpenseItem: React.FC<ExpenseItemProps> = ({ expense, onEdit }) => 
                 type="button"
                 onClick={handleDeleteClick}
                 className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors"
-                title="Excluir gasto"
+                title={isIncome ? 'Excluir receita' : 'Excluir gasto'}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -216,14 +237,14 @@ export const ExpenseItem: React.FC<ExpenseItemProps> = ({ expense, onEdit }) => 
         )}
       </div>
 
-      {/* Delete confirmation dialog for regular expense */}
+      {/* Delete confirmation dialog */}
       <ConfirmDialog
         isOpen={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}
         onConfirm={() => deleteExpense(expense.id)}
-        title="Excluir Gasto"
-        message={`Deseja realmente remover o gasto "${expense.title}" no valor de ${formatCurrency(expense.amount)}?`}
-        confirmText="Excluir Gasto"
+        title={isIncome ? 'Excluir Receita' : 'Excluir Gasto'}
+        message={`Deseja realmente remover ${isIncome ? 'a receita' : 'o gasto'} "${expense.title}" no valor de ${formatCurrency(expense.amount)}?`}
+        confirmText={isIncome ? 'Excluir Receita' : 'Excluir Gasto'}
       />
 
       {/* Delete Modal for Installment Purchases */}

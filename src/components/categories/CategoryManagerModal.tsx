@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import { Category } from '../../types/finance';
+import { Category, TransactionType } from '../../types/finance';
 import { useFinance } from '../../context/FinanceContext';
 import { renderCategoryIcon } from '../../utils/icons';
-import { Plus, Edit2, Trash2, Tag, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Tag, AlertCircle, TrendingDown, TrendingUp } from 'lucide-react';
 import { CategoryModal } from './CategoryModal';
 
 interface CategoryManagerModalProps {
@@ -19,11 +19,17 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 }) => {
   const { categories, expenses, deleteCategory } = useFinance();
 
+  const [filterType, setFilterType] = useState<'all' | TransactionType>('all');
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const [reassignTargetId, setReassignTargetId] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  const filteredCategories = categories.filter((cat) => {
+    if (filterType === 'all') return true;
+    return (cat.type || 'expense') === filterType;
+  });
 
   const handleEdit = (cat: Category) => {
     setEditingCategory(cat);
@@ -38,9 +44,13 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
   const initiateDelete = (cat: Category) => {
     setCategoryToDelete(cat);
     setErrorMessage('');
-    const otherCategories = categories.filter((c) => c.id !== cat.id);
-    if (otherCategories.length > 0) {
-      setReassignTargetId(otherCategories[0].id);
+    const sameTypeCategories = categories.filter(
+      (c) => c.id !== cat.id && (c.type || 'expense') === (cat.type || 'expense')
+    );
+    if (sameTypeCategories.length > 0) {
+      setReassignTargetId(sameTypeCategories[0].id);
+    } else {
+      setReassignTargetId('');
     }
   };
 
@@ -50,7 +60,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
     const linkedCount = expenses.filter((e) => e.categoryId === categoryToDelete.id).length;
 
     if (linkedCount > 0 && !reassignTargetId) {
-      setErrorMessage('Por favor, selecione para qual categoria transferir os gastos existentes.');
+      setErrorMessage('Por favor, selecione para qual categoria transferir os lançamentos existentes.');
       return;
     }
 
@@ -72,31 +82,70 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
       <Modal
         isOpen={isOpen}
         onClose={onClose}
-        title="Tipos de Gasto (Categorias)"
-        subtitle="Gerencie e personalize todas as categorias para lançar seus gastos"
+        title="Gerenciador de Categorias"
+        subtitle="Gerencie e personalize categorias de despesas (saídas) e receitas (entradas)"
         maxWidth="xl"
       >
         <div className="space-y-4">
-          {/* Action Header */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              {categories.length} categoria(s) cadastrada(s)
-            </span>
+          {/* Filter tabs & Action Button */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            {/* Filter Tabs */}
+            <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setFilterType('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  filterType === 'all'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Todas ({categories.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterType('expense')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  filterType === 'expense'
+                    ? 'bg-white dark:bg-slate-900 text-rose-600 dark:text-rose-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <TrendingDown className="w-3.5 h-3.5" />
+                Despesas ({categories.filter((c) => (c.type || 'expense') === 'expense').length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterType('income')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  filterType === 'income'
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <TrendingUp className="w-3.5 h-3.5" />
+                Receitas ({categories.filter((c) => c.type === 'income').length})
+              </button>
+            </div>
+
             <Button
               type="button"
               variant="primary"
               size="sm"
               icon={<Plus className="w-4 h-4" />}
               onClick={handleNew}
+              className="bg-emerald-600 hover:bg-emerald-700"
             >
-              Novo Tipo de Gasto
+              Nova Categoria
             </Button>
           </div>
 
           {/* List of Categories */}
-          <div className="divide-y divide-slate-100 dark:divide-slate-800/80 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900">
-            {categories.map((cat) => {
+          <div className="divide-y divide-slate-100 dark:divide-slate-800/80 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900 max-h-[380px] overflow-y-auto custom-scrollbar">
+            {filteredCategories.map((cat) => {
               const expenseCount = expenses.filter((e) => e.categoryId === cat.id).length;
+              const isIncome = cat.type === 'income';
+
               return (
                 <div
                   key={cat.id}
@@ -110,18 +159,22 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                       {renderCategoryIcon(cat.icon, 'w-5 h-5')}
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-sm text-slate-900 dark:text-white">
                           {cat.name}
                         </span>
-                        {cat.isDefault && (
-                          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-md">
-                            Padrão
-                          </span>
-                        )}
+                        <span
+                          className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md ${
+                            isIncome
+                              ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+                              : 'bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300'
+                          }`}
+                        >
+                          {isIncome ? 'Receita' : 'Despesa'}
+                        </span>
                       </div>
                       <span className="text-xs text-slate-500 dark:text-slate-400">
-                        {expenseCount} {expenseCount === 1 ? 'gasto registrado' : 'gastos registrados'}
+                        {expenseCount} {expenseCount === 1 ? 'lançamento vinculado' : 'lançamentos vinculados'}
                       </span>
                     </div>
                   </div>
@@ -130,7 +183,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleEdit(cat)}
-                      className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 rounded-lg transition-colors"
+                      className="p-2 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 rounded-lg transition-colors"
                       title="Editar categoria"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -150,10 +203,10 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
             })}
           </div>
 
-          {categories.length === 0 && (
+          {filteredCategories.length === 0 && (
             <div className="text-center py-8">
               <Tag className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">Nenhuma categoria encontrada.</p>
+              <p className="text-sm text-slate-500">Nenhuma categoria encontrada nesta aba.</p>
             </div>
           )}
 
@@ -173,6 +226,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
           setEditingCategory(null);
         }}
         categoryToEdit={editingCategory}
+        initialType={filterType === 'income' ? 'income' : 'expense'}
       />
 
       {/* Delete Confirmation Dialog with Reassign */}
@@ -180,7 +234,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
         <Modal
           isOpen={true}
           onClose={() => setCategoryToDelete(null)}
-          title="Excluir Tipo de Gasto"
+          title="Excluir Categoria"
           maxWidth="sm"
         >
           <div className="space-y-4">
@@ -193,31 +247,33 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 
             {(() => {
               const count = expenses.filter((e) => e.categoryId === categoryToDelete.id).length;
+              const compatibleTargetCategories = categories.filter(
+                (c) => c.id !== categoryToDelete.id && (c.type || 'expense') === (categoryToDelete.type || 'expense')
+              );
+
               if (count > 0) {
                 return (
                   <div className="space-y-2">
                     <p className="text-xs text-slate-600 dark:text-slate-300">
-                      Existem <strong>{count}</strong> gasto(s) vinculados a esta categoria. Escolha para onde transferi-los:
+                      Existem <strong>{count}</strong> lançamento(s) vinculados a esta categoria. Escolha para onde transferi-los:
                     </p>
                     <select
                       value={reassignTargetId}
                       onChange={(e) => setReassignTargetId(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white"
                     >
-                      {categories
-                        .filter((c) => c.id !== categoryToDelete.id)
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            Mover para: {c.name}
-                          </option>
-                        ))}
+                      {compatibleTargetCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          Mover para: {c.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 );
               }
               return (
                 <p className="text-xs text-slate-500">
-                  Nenhum gasto está vinculado a esta categoria. Ela será removida com segurança.
+                  Nenhum lançamento está vinculado a esta categoria. Ela será removida com segurança.
                 </p>
               );
             })()}

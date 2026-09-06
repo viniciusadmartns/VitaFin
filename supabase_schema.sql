@@ -1,5 +1,5 @@
 -- ==============================================================================
--- 🌿 VitaFin - Script de Criação do Banco de Dados (Supabase PostgreSQL)
+-- 🌿 VitaFin - Script de Criação & Atualização do Banco de Dados (Supabase PostgreSQL)
 -- ==============================================================================
 -- Instruções:
 -- 1. Acesse o painel do seu projeto no Supabase (https://supabase.com/dashboard)
@@ -11,19 +11,23 @@
 -- 1. Habilitar extensão de UUID (caso não esteja ativa)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 2. Tabela de Categorias / Tipos de Gasto
+-- 2. Tabela de Categorias (Despesas & Receitas)
 CREATE TABLE IF NOT EXISTS public.categories (
     id TEXT PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     color TEXT NOT NULL,
     icon TEXT NOT NULL,
+    type TEXT DEFAULT 'expense', -- 'expense' ou 'income'
     is_default BOOLEAN DEFAULT FALSE,
     budget_limit NUMERIC(12,2) DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- 3. Tabela de Gastos / Despesas (com suporte a parcelamento)
+-- Garantir coluna 'type' caso a tabela já exista de versões anteriores
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'expense';
+
+-- 3. Tabela de Lançamentos (Despesas & Receitas com parcelamento)
 CREATE TABLE IF NOT EXISTS public.expenses (
     id TEXT PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -31,7 +35,8 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     amount NUMERIC(12,2) NOT NULL,
     date DATE NOT NULL,
     category_id TEXT REFERENCES public.categories(id) ON DELETE SET NULL,
-    payment_method TEXT DEFAULT 'credit',
+    type TEXT DEFAULT 'expense', -- 'expense' ou 'income'
+    payment_method TEXT DEFAULT 'pix',
     notes TEXT DEFAULT NULL,
     installment_group_id TEXT DEFAULT NULL,
     installment_number INTEGER DEFAULT NULL,
@@ -40,6 +45,9 @@ CREATE TABLE IF NOT EXISTS public.expenses (
     created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW())
 );
+
+-- Garantir coluna 'type' caso a tabela já exista de versões anteriores
+ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'expense';
 
 -- 4. Tabela de Metas / Orçamento Mensal
 CREATE TABLE IF NOT EXISTS public.budgets (
@@ -61,52 +69,64 @@ ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budgets ENABLE ROW LEVEL SECURITY;
 
 -- Políticas para Categorias
+DROP POLICY IF EXISTS "Usuários podem visualizar suas próprias categorias" ON public.categories;
 CREATE POLICY "Usuários podem visualizar suas próprias categorias"
     ON public.categories FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuários podem cadastrar suas próprias categorias" ON public.categories;
 CREATE POLICY "Usuários podem cadastrar suas próprias categorias"
     ON public.categories FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuários podem atualizar suas próprias categorias" ON public.categories;
 CREATE POLICY "Usuários podem atualizar suas próprias categorias"
     ON public.categories FOR UPDATE
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuários podem excluir suas próprias categorias" ON public.categories;
 CREATE POLICY "Usuários podem excluir suas próprias categorias"
     ON public.categories FOR DELETE
     USING (auth.uid() = user_id);
 
--- Políticas para Despesas
+-- Políticas para Despesas e Receitas
+DROP POLICY IF EXISTS "Usuários podem visualizar seus próprios gastos" ON public.expenses;
 CREATE POLICY "Usuários podem visualizar seus próprios gastos"
     ON public.expenses FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuários podem cadastrar seus próprios gastos" ON public.expenses;
 CREATE POLICY "Usuários podem cadastrar seus próprios gastos"
     ON public.expenses FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuários podem atualizar seus próprios gastos" ON public.expenses;
 CREATE POLICY "Usuários podem atualizar seus próprios gastos"
     ON public.expenses FOR UPDATE
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuários podem excluir seus próprios gastos" ON public.expenses;
 CREATE POLICY "Usuários podem excluir seus próprios gastos"
     ON public.expenses FOR DELETE
     USING (auth.uid() = user_id);
 
 -- Políticas para Orçamentos
+DROP POLICY IF EXISTS "Usuários podem visualizar seus próprios orçamentos" ON public.budgets;
 CREATE POLICY "Usuários podem visualizar seus próprios orçamentos"
     ON public.budgets FOR SELECT
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuários podem cadastrar/atualizar seus próprios orçamentos" ON public.budgets;
 CREATE POLICY "Usuários podem cadastrar/atualizar seus próprios orçamentos"
     ON public.budgets FOR INSERT
     WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuários podem atualizar seus orçamentos" ON public.budgets;
 CREATE POLICY "Usuários podem atualizar seus orçamentos"
     ON public.budgets FOR UPDATE
     USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Usuários podem excluir seus orçamentos" ON public.budgets;
 CREATE POLICY "Usuários podem excluir seus orçamentos"
     ON public.budgets FOR DELETE
     USING (auth.uid() = user_id);
@@ -126,25 +146,30 @@ CREATE INDEX IF NOT EXISTS idx_budgets_user_month ON public.budgets(user_id, mon
 CREATE OR REPLACE FUNCTION public.handle_new_user_categories()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.categories (id, user_id, name, color, icon, is_default)
+    INSERT INTO public.categories (id, user_id, name, color, icon, type, is_default)
     VALUES
-        ('cat-food-' || NEW.id, NEW.id, 'Alimentação & Refeições', '#10B981', 'utensils', true),
-        ('cat-market-' || NEW.id, NEW.id, 'Supermercado & Feira', '#06B6D4', 'shopping-cart', true),
-        ('cat-home-' || NEW.id, NEW.id, 'Moradia & Contas Fixas', '#3B82F6', 'home', true),
-        ('cat-transport-' || NEW.id, NEW.id, 'Transporte & Combustível', '#F59E0B', 'car', true),
-        ('cat-health-' || NEW.id, NEW.id, 'Saúde & Farmácia', '#EF4444', 'heart-pulse', true),
-        ('cat-leisure-' || NEW.id, NEW.id, 'Lazer & Entretenimento', '#8B5CF6', 'gamepad-2', true),
-        ('cat-tech-' || NEW.id, NEW.id, 'Tecnologia & Conexão', '#6366F1', 'laptop', true),
-        ('cat-shopping-' || NEW.id, NEW.id, 'Compras & Vestuário', '#EC4899', 'shopping-bag', true),
-        ('cat-education-' || NEW.id, NEW.id, 'Educação & Trabalho', '#14B8A6', 'graduation-cap', true),
-        ('cat-pets-' || NEW.id, NEW.id, 'Família & Pets', '#F97316', 'paw-print', true),
-        ('cat-finance-' || NEW.id, NEW.id, 'Bancos & Investimentos', '#059669', 'credit-card', true),
-        ('cat-others-' || NEW.id, NEW.id, 'Outros / Diversos', '#475569', 'more-horizontal', true);
+        -- Despesas
+        ('cat-alimentacao-' || NEW.id, NEW.id, 'Alimentação', '#EF4444', 'utensils', 'expense', true),
+        ('cat-compras-' || NEW.id, NEW.id, 'Compras & Roupas', '#14B8A6', 'shopping-bag', 'expense', true),
+        ('cat-educacao-' || NEW.id, NEW.id, 'Educação & Estudos', '#EC4899', 'graduation-cap', 'expense', true),
+        ('cat-lazer-' || NEW.id, NEW.id, 'Lazer & Entretenimento', '#8B5CF6', 'film', 'expense', true),
+        ('cat-moradia-' || NEW.id, NEW.id, 'Moradia & Contas', '#3B82F6', 'home', 'expense', true),
+        ('cat-outros-' || NEW.id, NEW.id, 'Outros / Diversos', '#64748B', 'more-horizontal', 'expense', true),
+        ('cat-saude-' || NEW.id, NEW.id, 'Saúde & Farmácia', '#10B981', 'heart-pulse', 'expense', true),
+        ('cat-mercado-' || NEW.id, NEW.id, 'Supermercado', '#F97316', 'shopping-cart', 'expense', true),
+        ('cat-transporte-' || NEW.id, NEW.id, 'Transporte & Carro', '#F59E0B', 'car', 'expense', true),
+        -- Receitas
+        ('cat-salario-' || NEW.id, NEW.id, 'Salário & Remuneração', '#10B981', 'banknote', 'income', true),
+        ('cat-freelance-' || NEW.id, NEW.id, 'Freelance & Serviços', '#3B82F6', 'briefcase', 'income', true),
+        ('cat-investimentos-' || NEW.id, NEW.id, 'Rendimentos & Dividendos', '#8B5CF6', 'trending-up', 'income', true),
+        ('cat-vendas-' || NEW.id, NEW.id, 'Vendas & Negócios', '#F59E0B', 'shopping-bag', 'income', true),
+        ('cat-bonus-' || NEW.id, NEW.id, 'Bônus & Prêmios', '#EC4899', 'gift', 'income', true),
+        ('cat-outras-entradas-' || NEW.id, NEW.id, 'Outras Receitas', '#14B8A6', 'wallet', 'income', true)
+    ON CONFLICT (id) DO NOTHING;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger disparado sempre que um usuário se cadastra no Supabase Auth
 DROP TRIGGER IF EXISTS on_auth_user_created_add_categories ON auth.users;
 CREATE TRIGGER on_auth_user_created_add_categories
     AFTER INSERT ON auth.users
