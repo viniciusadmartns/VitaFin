@@ -31,30 +31,31 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ onOpenNewExpense }) =>
   const totalFilteredAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5 sm:space-y-4">
       {/* Section Header with Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3.5 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
         <div>
-          <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Receipt className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+          <h3 className="text-sm sm:text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Receipt className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
             Lançamentos de Gastos
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Total filtrado: <strong className="text-slate-900 dark:text-white">{formatCurrency(totalFilteredAmount)}</strong>
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Total filtrado: <strong className="text-slate-900 dark:text-white font-bold">{formatCurrency(totalFilteredAmount)}</strong>
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto w-full sm:w-auto justify-end">
           {filteredExpenses.length > 0 && (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              icon={<Download className="w-4 h-4" />}
+              icon={<Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
               onClick={handleExportCSV}
               title="Exportar planilha Excel/CSV dos gastos filtrados"
+              className="text-xs px-2.5 sm:px-3 py-1.5"
             >
-              Exportar CSV
+              <span className="hidden xs:inline">Exportar</span> CSV
             </Button>
           )}
 
@@ -62,9 +63,9 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ onOpenNewExpense }) =>
             type="button"
             variant="primary"
             size="sm"
-            icon={<Plus className="w-4 h-4" />}
+            icon={<Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             onClick={onOpenNewExpense}
-            className="bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500"
+            className="bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500 text-xs px-3 sm:px-3.5 py-1.5"
           >
             Novo Gasto
           </Button>
@@ -76,21 +77,21 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ onOpenNewExpense }) =>
 
       {/* Expense Items List */}
       {filteredExpenses.length > 0 ? (
-        <div className="space-y-3">
+        <div className="space-y-2.5 sm:space-y-3">
           {filteredExpenses.map((expense) => (
             <ExpenseItem key={expense.id} expense={expense} onEdit={handleEdit} />
           ))}
         </div>
       ) : (
         /* Empty State */
-        <div className="text-center py-12 px-4 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
-          <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-950/50 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 mx-auto mb-3.5">
-            <Receipt className="w-7 h-7" />
+        <div className="text-center py-10 sm:py-12 px-4 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-emerald-50 dark:bg-emerald-950/50 rounded-2xl flex items-center justify-center text-emerald-600 dark:text-emerald-400 mx-auto mb-3">
+            <Receipt className="w-6 h-6 sm:w-7 sm:h-7" />
           </div>
-          <h4 className="text-base font-semibold text-slate-900 dark:text-white mb-1">
+          <h4 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-white mb-1">
             Nenhum gasto encontrado
           </h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-5 leading-relaxed">
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-4 leading-relaxed">
             {monthExpenses.length > 0
               ? 'Nenhum gasto corresponde aos filtros aplicados. Tente limpar os filtros de busca.'
               : `Você ainda não cadastrou despesas para ${formatMonthYear(selectedMonth)}.`}
@@ -98,7 +99,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ onOpenNewExpense }) =>
           <Button
             type="button"
             variant="primary"
-            size="md"
+            size="sm"
             icon={<Plus className="w-4 h-4" />}
             onClick={onOpenNewExpense}
             className="bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500"

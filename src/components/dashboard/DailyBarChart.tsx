@@ -23,13 +23,25 @@ export const DailyBarChart: React.FC = () => {
     if (active && payload && payload.length) {
       const item = payload[0].payload;
       return (
-        <div className="bg-slate-900/95 text-white p-3 rounded-xl shadow-xl border border-slate-700/80 text-xs backdrop-blur-sm">
-          <p className="font-bold text-slate-300 mb-1">
-            Dia {item.day} ({item.dayName})
-          </p>
-          <p className="text-sm font-extrabold text-emerald-300">
+        <div className="bg-slate-900/95 dark:bg-slate-800/95 text-white px-3.5 py-2.5 rounded-xl shadow-2xl border border-slate-700/80 text-xs backdrop-blur-md pointer-events-none min-w-[140px] animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <span className="font-semibold text-slate-300">
+              Dia {item.day}
+            </span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase">
+              {item.dayName}
+            </span>
+          </div>
+          <p className="text-sm font-extrabold text-emerald-400">
             {formatCurrency(item.total)}
           </p>
+          {stats.averagePerDay > 0 && item.total > 0 && (
+            <p className="text-[10px] text-slate-400 mt-1 pt-1 border-t border-slate-700/60">
+              {item.total > stats.averagePerDay
+                ? `${((item.total / stats.averagePerDay - 1) * 100).toFixed(0)}% acima da média`
+                : `${((1 - item.total / stats.averagePerDay) * 100).toFixed(0)}% abaixo da média`}
+            </p>
+          )}
         </div>
       );
     }
@@ -37,14 +49,14 @@ export const DailyBarChart: React.FC = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col h-full">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white dark:bg-slate-900 p-4 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col h-full">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
         <div>
-          <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600 dark:text-indigo-400" />
             Evolução Diária de Gastos
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Despesas acumuladas ao longo dos dias de {formatMonthYear(selectedMonth)}
           </p>
         </div>
@@ -56,9 +68,9 @@ export const DailyBarChart: React.FC = () => {
         )}
       </div>
 
-      <div className="h-60 sm:h-72 w-full mt-2">
+      <div className="h-52 sm:h-72 w-full mt-1 sm:mt-2">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 10, right: 8, left: -22, bottom: 0 }}>
             <CartesianGrid
               strokeDasharray="3 3"
               vertical={false}
@@ -68,7 +80,8 @@ export const DailyBarChart: React.FC = () => {
               dataKey="day"
               tickLine={false}
               axisLine={{ stroke: theme === 'dark' ? '#334155' : '#e2e8f0' }}
-              tick={{ fill: theme === 'dark' ? '#94a3b8' : '#64748b', fontSize: 11 }}
+              tick={{ fill: theme === 'dark' ? '#94a3b8' : '#64748b', fontSize: 10 }}
+              interval="preserveStartEnd"
             />
             <YAxis
               tickLine={false}
@@ -76,7 +89,14 @@ export const DailyBarChart: React.FC = () => {
               tick={{ fill: theme === 'dark' ? '#94a3b8' : '#64748b', fontSize: 10 }}
               tickFormatter={(value) => `R$${value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value}`}
             />
-            <Tooltip content={<CustomTooltip />} />
+            <Tooltip
+              content={<CustomTooltip />}
+              cursor={{ fill: theme === 'dark' ? 'rgba(99, 102, 241, 0.12)' : 'rgba(99, 102, 241, 0.08)', radius: 6 }}
+              isAnimationActive={true}
+              animationDuration={200}
+              animationEasing="ease-out"
+              wrapperStyle={{ zIndex: 40, pointerEvents: 'none' }}
+            />
             {hasExpenses && stats.averagePerDay > 0 && (
               <ReferenceLine
                 y={stats.averagePerDay}
@@ -88,8 +108,11 @@ export const DailyBarChart: React.FC = () => {
             <Bar
               dataKey="total"
               fill="#6366f1"
-              radius={[6, 6, 0, 0]}
-              className="transition-all hover:opacity-80 cursor-pointer"
+              radius={[4, 4, 0, 0]}
+              className="cursor-pointer transition-opacity hover:opacity-80"
+              isAnimationActive={true}
+              animationDuration={800}
+              animationEasing="ease-out"
             />
           </BarChart>
         </ResponsiveContainer>

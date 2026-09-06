@@ -13,7 +13,6 @@ import { ExpenseList } from './components/expenses/ExpenseList';
 import { ExpenseFormModal } from './components/expenses/ExpenseFormModal';
 import { BudgetModal } from './components/budget/BudgetModal';
 import { CategoryManagerModal } from './components/categories/CategoryManagerModal';
-import { Plus } from 'lucide-react';
 
 const FinanceDashboard: React.FC = () => {
   const [isExpenseModalOpen, setIsExpenseModalOpen] = React.useState(false);
@@ -24,11 +23,11 @@ const FinanceDashboard: React.FC = () => {
     <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 flex flex-col transition-colors">
       <Header onOpenNewExpense={() => setIsExpenseModalOpen(true)} />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-3.5 sm:space-y-6">
         <MonthSelector />
         <MetricCards onOpenBudgetModal={() => setIsBudgetModalOpen(true)} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-6 items-stretch">
           <div className="lg:col-span-6 h-full">
             <CategoryPieChart />
           </div>
@@ -40,7 +39,7 @@ const FinanceDashboard: React.FC = () => {
         <ExpenseList onOpenNewExpense={() => setIsExpenseModalOpen(true)} />
       </main>
 
-      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 py-6 mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
+      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 py-5 sm:py-6 mt-8 sm:mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p>
             <strong>VitaFin</strong> — Gestão Financeira Pessoal & Controle de Despesas Mensais
@@ -50,17 +49,6 @@ const FinanceDashboard: React.FC = () => {
           </p>
         </div>
       </footer>
-
-      <div className="fixed bottom-5 right-5 sm:hidden z-30 flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={() => setIsExpenseModalOpen(true)}
-          className="w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white shadow-xl flex items-center justify-center active:scale-95 transition-transform"
-          title="Lançar Novo Gasto"
-        >
-          <Plus className="w-7 h-7" />
-        </button>
-      </div>
 
       <ExpenseFormModal
         isOpen={isExpenseModalOpen}

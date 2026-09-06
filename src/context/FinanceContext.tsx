@@ -119,7 +119,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const saved = localStorage.getItem(STORAGE_KEYS.CATEGORIES) || localStorage.getItem('omnifinancas_categories_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return [...parsed].sort((a: Category, b: Category) =>
+            a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+          );
+        }
       }
     } catch (e) {
       console.error('Erro ao carregar categorias do localStorage:', e);
@@ -189,7 +193,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           icon: String(c.icon),
           isDefault: Boolean(c.is_default),
           budgetLimit: c.budget_limit ? Number(c.budget_limit) : undefined,
-        }));
+        })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
         setCategories(mappedCategories);
       } else {
         // Se usuário não tiver categorias salvas no Supabase, envia as categorias padrão
@@ -701,6 +705,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     return result;
   }, [monthExpenses, filter, categories]);
 
+  // Categorias sempre ordenadas em ordem alfabética (A a Z)
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) =>
+      a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+    );
+  }, [categories]);
+
   // Computed Statistics for Selected Month
   const stats = useMemo<MonthStats>(() => {
     const total = monthExpenses.reduce((sum, item) => sum + item.amount, 0);
@@ -726,7 +737,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
     });
 
-    const categorySummaries: CategorySummary[] = categories
+    const categorySummaries: CategorySummary[] = sortedCategories
       .map((category) => {
         const data = categoryTotalsMap.get(category.id) || { total: 0, count: 0 };
         const percentage = total > 0 ? (data.total / total) * 100 : 0;
@@ -781,12 +792,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       budgetUsedPercentage,
       remainingBudget,
     };
-  }, [monthExpenses, categories, selectedMonth, budgets]);
+  }, [monthExpenses, sortedCategories, selectedMonth, budgets]);
 
   return (
     <FinanceContext.Provider
       value={{
-        categories,
+        categories: sortedCategories,
         expenses,
         budgets,
         selectedMonth,

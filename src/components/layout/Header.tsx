@@ -10,14 +10,12 @@ import {
   Tag,
   Sun,
   Moon,
-  Database,
   User,
   Cloud,
   CloudOff,
   ChevronDown,
 } from 'lucide-react';
 import { CategoryManagerModal } from '../categories/CategoryManagerModal';
-import { BackupModal } from '../backup/BackupModal';
 import { AuthModal } from '../auth/AuthModal';
 
 interface HeaderProps {
@@ -29,7 +27,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
   const { theme, toggleTheme, categories, isLoadingData } = useFinance();
   const { user, isConfigured } = useAuth();
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
-  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isModuleSelectorOpen, setIsModuleSelectorOpen] = useState(false);
 
@@ -38,59 +35,59 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-white/85 dark:bg-slate-950/85 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden shadow-sm shadow-slate-200/50 dark:shadow-none flex-shrink-0 border border-slate-200/80 dark:border-slate-800 bg-white p-1 flex items-center justify-center">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full overflow-hidden shadow-sm flex-shrink-0 border border-slate-200/80 dark:border-slate-800 bg-white p-0.5 sm:p-1 flex items-center justify-center">
               <img
                 src={logoImg}
                 alt={`${moduleConfig.name} Logo`}
                 className="w-full h-full object-contain rounded-full"
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 {/* Module Selector Button */}
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setIsModuleSelectorOpen(!isModuleSelectorOpen)}
-                    className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity focus:outline-none"
                   >
-                    <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white">
+                    <h1 className="text-base sm:text-xl font-black tracking-tight text-slate-900 dark:text-white truncate">
                       Vita<span className={`bg-gradient-to-r ${moduleConfig.gradient} bg-clip-text text-transparent`}>{moduleConfig.shortName}</span>
                     </h1>
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                    <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 flex-shrink-0" />
                   </button>
 
                   {/* Module Selector Dropdown */}
                   {isModuleSelectorOpen && (
                     <>
                       <div
-                        className="fixed inset-0 z-40"
+                        className="fixed inset-0 z-40 bg-slate-900/20 backdrop-blur-[1px]"
                         onClick={() => setIsModuleSelectorOpen(false)}
                       />
-                      <div className="absolute left-0 top-full mt-2 z-50 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 py-2 overflow-hidden">
+                      <div className="absolute left-0 top-full mt-2 z-50 w-72 max-w-[90vw] bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 py-2 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
                         <button
                           type="button"
                           onClick={() => {
                             setModule('vitafin');
                             setIsModuleSelectorOpen(false);
                           }}
-                          className={`w-full px-4 py-3 text-left hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${
-                            currentModule === 'vitafin' ? 'bg-emerald-50 dark:bg-emerald-950/30' : ''
+                          className={`w-full px-4 py-3 text-left hover:bg-slate-100 dark:hover:bg-slate-700/80 transition-colors ${
+                            currentModule === 'vitafin' ? 'bg-emerald-50/80 dark:bg-emerald-950/40' : ''
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 bg-white flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 bg-white flex-shrink-0 p-0.5">
                               <img
                                 src={logoImgFin}
                                 alt="VitaFin"
-                                className="w-full h-full object-contain"
+                                className="w-full h-full object-contain rounded-full"
                               />
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <div className="text-sm font-bold text-slate-900 dark:text-white whitespace-nowrap">
                                 VitaFin
                               </div>
@@ -99,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
                               </div>
                             </div>
                             {currentModule === 'vitafin' && (
-                              <span className="ml-auto text-emerald-600 dark:text-emerald-400 flex-shrink-0">✓</span>
+                              <span className="text-emerald-600 dark:text-emerald-400 font-bold flex-shrink-0">✓</span>
                             )}
                           </div>
                         </button>
@@ -110,19 +107,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
                             setModule('vitainvest');
                             setIsModuleSelectorOpen(false);
                           }}
-                          className={`w-full px-4 py-3 text-left hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${
-                            currentModule === 'vitainvest' ? 'bg-blue-50 dark:bg-blue-950/30' : ''
+                          className={`w-full px-4 py-3 text-left hover:bg-slate-100 dark:hover:bg-slate-700/80 transition-colors ${
+                            currentModule === 'vitainvest' ? 'bg-blue-50/80 dark:bg-blue-950/40' : ''
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 bg-white flex-shrink-0">
+                            <div className="w-8 h-8 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 bg-white flex-shrink-0 p-0.5">
                               <img
                                 src={logoImgInvest}
                                 alt="VitaInvest"
-                                className="w-full h-full object-contain"
+                                className="w-full h-full object-contain rounded-full"
                               />
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <div className="text-sm font-bold text-slate-900 dark:text-white whitespace-nowrap">
                                 VitaInvest
                               </div>
@@ -131,7 +128,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
                               </div>
                             </div>
                             {currentModule === 'vitainvest' && (
-                              <span className="ml-auto text-blue-600 dark:text-blue-400 flex-shrink-0">✓</span>
+                              <span className="text-blue-600 dark:text-blue-400 font-bold flex-shrink-0">✓</span>
                             )}
                           </div>
                         </button>
@@ -150,15 +147,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 hidden sm:block truncate">
                 {moduleConfig.subtitle}
               </p>
             </div>
           </div>
 
           {/* Right Action buttons */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Manage Categories Button */}
+          <div className="flex items-center gap-1 sm:gap-2.5 flex-shrink-0">
+            {/* Manage Categories Button (Desktop) */}
             <Button
               type="button"
               variant="secondary"
@@ -174,27 +171,17 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
             <button
               type="button"
               onClick={() => setIsCategoryManagerOpen(true)}
-              className="sm:hidden p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors relative"
+              className="sm:hidden w-8 h-8 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
               title={`Gerenciar ${moduleConfig.terminology.categories}`}
             >
-              <Tag className="w-5 h-5" />
-            </button>
-
-            {/* Backup / Data button */}
-            <button
-              type="button"
-              onClick={() => setIsBackupModalOpen(true)}
-              className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-              title="Backup e Dados Locais"
-            >
-              <Database className="w-5 h-5" />
+              <Tag className="w-4 h-4" />
             </button>
 
             {/* Auth / Cloud Sync Account Button */}
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className={`p-2 rounded-xl transition-colors flex items-center gap-1.5 ${
+              className={`h-8 px-2 sm:h-9 sm:px-2.5 rounded-xl transition-colors flex items-center gap-1.5 ${
                 user
                   ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -203,15 +190,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
             >
               {user ? (
                 <>
-                  <Cloud className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                  <Cloud className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   <span className="text-xs font-semibold hidden md:inline max-w-[120px] truncate">
                     {user.email?.split('@')[0]}
                   </span>
                 </>
               ) : isConfigured ? (
-                <User className="w-5 h-5" />
+                <User className="w-4 h-4" />
               ) : (
-                <CloudOff className="w-5 h-5 text-slate-400" />
+                <CloudOff className="w-4 h-4 text-slate-400" />
               )}
             </button>
 
@@ -219,28 +206,31 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
             <button
               type="button"
               onClick={toggleTheme}
-              className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
               title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
             >
               {theme === 'dark' ? (
-                <Sun className="w-5 h-5 text-amber-400" />
+                <Sun className="w-4 h-4 text-amber-400" />
               ) : (
-                <Moon className="w-5 h-5 text-slate-600" />
+                <Moon className="w-4 h-4 text-slate-600" />
               )}
             </button>
 
-            {/* New Expense Primary CTA */}
+            {/* New Expense Primary CTA (Header) */}
             <Button
               type="button"
-              variant="primary"
+              variant={currentModule === 'vitainvest' ? 'primary' : 'success'}
               size="sm"
               icon={<Plus className="w-4 h-4" />}
               onClick={onOpenNewExpense}
               isLoading={isLoadingData}
-              className={`shadow-md shadow-${moduleConfig.accentColor}-600/20 bg-${moduleConfig.accentColor}-600 hover:bg-${moduleConfig.accentColor}-700 focus:ring-${moduleConfig.accentColor}-500`}
+              className={
+                currentModule === 'vitainvest'
+                  ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-md shadow-blue-600/25 focus:ring-blue-500 text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 font-semibold'
+                  : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-md shadow-emerald-600/25 focus:ring-emerald-500 text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 font-semibold'
+              }
             >
-              <span className="hidden sm:inline">{moduleConfig.terminology.newExpense}</span>
-              <span className="sm:hidden">Lançar</span>
+              <span>{moduleConfig.terminology.newExpense}</span>
             </Button>
           </div>
         </div>
@@ -250,12 +240,6 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
       <CategoryManagerModal
         isOpen={isCategoryManagerOpen}
         onClose={() => setIsCategoryManagerOpen(false)}
-      />
-
-      {/* Backup and Data Modal */}
-      <BackupModal
-        isOpen={isBackupModalOpen}
-        onClose={() => setIsBackupModalOpen(false)}
       />
 
       {/* Supabase Auth Modal */}
