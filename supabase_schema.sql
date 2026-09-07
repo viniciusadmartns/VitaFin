@@ -362,3 +362,77 @@ DROP TRIGGER IF EXISTS on_auth_user_created_add_categories ON auth.users;
 CREATE TRIGGER on_auth_user_created_add_categories
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_categories();
+
+-- ==============================================================================
+-- 📝 3. TABELAS DO VITAPAD (Blocos de Anotações, Subpáginas, Tags)
+-- ==============================================================================
+
+-- Tabela de Blocos de Anotações (Pad Notes)
+CREATE TABLE IF NOT EXISTS public.pad_notes (
+    id TEXT PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    parent_id TEXT REFERENCES public.pad_notes(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    content TEXT DEFAULT '',
+    color TEXT DEFAULT 'default',
+    is_pinned BOOLEAN DEFAULT false,
+    is_archived BOOLEAN DEFAULT false,
+    is_favorite BOOLEAN DEFAULT false,
+    tags TEXT[] DEFAULT '{}',
+    checklist JSONB DEFAULT '[]',
+    order_index INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW())
+);
+
+-- Tabela de Marcadores (Pad Tags)
+CREATE TABLE IF NOT EXISTS public.pad_tags (
+    id TEXT PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    color TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
+-- Habilitar RLS VitaPad
+ALTER TABLE public.pad_notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pad_tags ENABLE ROW LEVEL SECURITY;
+
+-- Políticas para Pad Notes
+DROP POLICY IF EXISTS "Usuários podem visualizar suas próprias anotações" ON public.pad_notes;
+CREATE POLICY "Usuários podem visualizar suas próprias anotações"
+    ON public.pad_notes FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem cadastrar suas próprias anotações" ON public.pad_notes;
+CREATE POLICY "Usuários podem cadastrar suas próprias anotações"
+    ON public.pad_notes FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem atualizar suas próprias anotações" ON public.pad_notes;
+CREATE POLICY "Usuários podem atualizar suas próprias anotações"
+    ON public.pad_notes FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem excluir suas próprias anotações" ON public.pad_notes;
+CREATE POLICY "Usuários podem excluir suas próprias anotações"
+    ON public.pad_notes FOR DELETE USING (auth.uid() = user_id);
+
+-- Políticas para Pad Tags
+DROP POLICY IF EXISTS "Usuários podem visualizar suas próprias tags" ON public.pad_tags;
+CREATE POLICY "Usuários podem visualizar suas próprias tags"
+    ON public.pad_tags FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem cadastrar suas próprias tags" ON public.pad_tags;
+CREATE POLICY "Usuários podem cadastrar suas próprias tags"
+    ON public.pad_tags FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem atualizar suas próprias tags" ON public.pad_tags;
+CREATE POLICY "Usuários podem atualizar suas próprias tags"
+    ON public.pad_tags FOR UPDATE USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Usuários podem excluir suas próprias tags" ON public.pad_tags;
+CREATE POLICY "Usuários podem excluir suas próprias tags"
+    ON public.pad_tags FOR DELETE USING (auth.uid() = user_id);
+
+-- Índices VitaPad
+CREATE INDEX IF NOT EXISTS idx_pad_notes_user ON public.pad_notes(user_id);
+CREATE INDEX IF NOT EXISTS idx_pad_notes_parent ON public.pad_notes(parent_id);
+CREATE INDEX IF NOT EXISTS idx_pad_tags_user ON public.pad_tags(user_id);

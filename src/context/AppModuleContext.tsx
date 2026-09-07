@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-type AppModule = 'vitafin' | 'vitainvest';
+type AppModule = 'vitafin' | 'vitainvest' | 'vitapad';
 
 interface AppModuleContextType {
   currentModule: AppModule;
@@ -70,6 +70,24 @@ const MODULE_CONFIGS = {
       categories: 'Tipos de Ativo',
       total: 'Total Investido',
       budget: 'Meta de Investimento',
+    }
+  },
+  vitapad: {
+    name: 'VitaPad',
+    shortName: 'Pad',
+    subtitle: 'Blocos de anotações inteligente',
+    gradient: 'from-amber-400 to-orange-500',
+    accentColor: 'amber',
+    accentLight: 'amber-50',
+    icon: '📝',
+    terminology: {
+      expense: 'Nota',
+      expenses: 'Anotações',
+      newExpense: 'Nova Anotação',
+      category: 'Marcador',
+      categories: 'Marcadores',
+      total: 'Total de Notas',
+      budget: 'Meta',
     }
   },
 };

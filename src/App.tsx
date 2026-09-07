@@ -3,7 +3,9 @@ import { AppModuleProvider, useAppModule } from './context/AppModuleContext';
 import { AuthProvider } from './context/AuthContext';
 import { FinanceProvider } from './context/FinanceContext';
 import { InvestmentProvider } from './context/InvestmentContext';
+import { PadProvider, usePad } from './context/PadContext';
 import { InvestmentDashboard } from './components/investment/InvestmentDashboard';
+import { PadDashboard } from './components/pad/PadDashboard';
 import { Header } from './components/layout/Header';
 import { MonthSelector } from './components/layout/MonthSelector';
 import { MetricCards } from './components/dashboard/MetricCards';
@@ -52,7 +54,7 @@ const FinanceDashboard: React.FC = () => {
             <strong>VitaFin</strong> — Gestão Financeira Inteligente & Controle de Gastos e Receitas
           </p>
           <p className="text-[11px] text-slate-400 dark:text-slate-500">
-            Sincronizado na nuvem (Supabase) e com suporte offline local.
+            Sincronizado na nuvem
           </p>
         </div>
       </footer>
@@ -76,12 +78,43 @@ const FinanceDashboard: React.FC = () => {
   );
 };
 
+const PadView: React.FC = () => {
+  const { openNewNote } = usePad();
+
+  return (
+    <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 flex flex-col transition-colors">
+      <Header
+        onOpenNewExpense={openNewNote}
+      />
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <PadDashboard />
+      </main>
+
+      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 py-5 sm:py-6 mt-8 sm:mt-12 text-center text-xs text-slate-500 dark:text-slate-400">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p>
+            <strong>VitaPad</strong> — Seus Blocos de Anotações Inteligentes
+          </p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500">
+            Sincronizado na nuvem
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
 // Componente que escolhe qual dashboard renderizar
 const DashboardSelector: React.FC = () => {
   const { currentModule } = useAppModule();
 
   if (currentModule === 'vitainvest') {
     return <InvestmentDashboard />;
+  }
+
+  if (currentModule === 'vitapad') {
+    return <PadView />;
   }
 
   return <FinanceDashboard />;
@@ -93,7 +126,9 @@ export default function App() {
       <AuthProvider>
         <FinanceProvider>
           <InvestmentProvider>
-            <DashboardSelector />
+            <PadProvider>
+              <DashboardSelector />
+            </PadProvider>
           </InvestmentProvider>
         </FinanceProvider>
       </AuthProvider>
