@@ -314,6 +314,60 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
   // --- CRUD Ativos ---
 
   const addAsset = (assetData: Omit<Asset, 'id' | 'createdAt'>): Asset => {
+    const cleanTicker = assetData.ticker.toUpperCase().trim();
+    const existingAsset = assets.find(a => a.ticker.toUpperCase().trim() === cleanTicker);
+
+    // Se o ativo já existe na carteira, somar ao existente calculando o novo preço médio ponderado
+    if (existingAsset) {
+      const addedQuantity = Number(assetData.quantity || 0);
+      const addedPrice = Number(assetData.averagePrice || 0);
+      const addedTotal = assetData.totalInvested ?? (addedQuantity * addedPrice);
+
+      const existingQuantity = Number(existingAsset.quantity || 0);
+      const existingTotalInvested = Number(
+        existingAsset.totalInvested || (existingQuantity * (existingAsset.averagePrice || 0))
+      );
+
+      const totalQuantity = existingQuantity + addedQuantity;
+      const totalInvested = existingTotalInvested + addedTotal;
+      const averagePrice = totalQuantity > 0 ? totalInvested / totalQuantity : 0;
+
+      // Se foi informado novo preço atual, usar ele; senão manter o preço atual existente ou o preço da nova compra
+      const currentPrice = assetData.currentPrice > 0
+        ? assetData.currentPrice
+        : (existingAsset.currentPrice > 0 ? existingAsset.currentPrice : (addedPrice > 0 ? addedPrice : averagePrice));
+
+      const currentValue = totalQuantity * currentPrice;
+      const profitLoss = currentValue - totalInvested;
+      const profitLossPercent = totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0;
+
+      const updatedAsset: Asset = {
+        ...existingAsset,
+        name: assetData.name && assetData.name !== cleanTicker ? assetData.name : existingAsset.name,
+        type: assetData.type || existingAsset.type,
+        quantity: totalQuantity,
+        averagePrice,
+        currentPrice,
+        totalInvested,
+        currentValue,
+        profitLoss,
+        profitLossPercent,
+        notes: assetData.notes
+          ? (existingAsset.notes ? `${existingAsset.notes}\n${assetData.notes}` : assetData.notes)
+          : existingAsset.notes,
+        updatedAt: new Date().toISOString(),
+      };
+
+      setAssets(prev => prev.map(a => a.id === existingAsset.id ? updatedAsset : a));
+
+      if (user && supabase) {
+        syncAssetToSupabase(updatedAsset, user.id);
+      }
+
+      return updatedAsset;
+    }
+
+    // Se for novo ativo, criar novo registro
     const totalInvested = assetData.totalInvested ?? (assetData.quantity * assetData.averagePrice);
     const currentPrice = assetData.currentPrice || assetData.averagePrice;
     const currentValue = assetData.currentValue ?? (assetData.quantity * currentPrice);
@@ -322,8 +376,8 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
 
     const newAsset: Asset = {
       ...assetData,
-      ticker: assetData.ticker.toUpperCase().trim(),
-      name: assetData.name ? assetData.name.trim() : assetData.ticker.toUpperCase().trim(),
+      ticker: cleanTicker,
+      name: assetData.name ? assetData.name.trim() : cleanTicker,
       totalInvested,
       currentPrice,
       currentValue,

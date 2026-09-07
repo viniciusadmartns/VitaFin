@@ -20,9 +20,10 @@ import { AuthModal } from '../auth/AuthModal';
 
 interface HeaderProps {
   onOpenNewExpense: () => void;
+  onOpenNewDividend?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
+export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense, onOpenNewDividend }) => {
   const { currentModule, setModule, moduleConfig } = useAppModule();
   const { theme, toggleTheme, categories, isLoadingData } = useFinance();
   const { user, isConfigured } = useAuth();
@@ -154,28 +155,33 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
           </div>
 
           {/* Right Action buttons */}
-          <div className="flex items-center gap-1 sm:gap-2.5 flex-shrink-0">
-            {/* Manage Categories Button (Desktop) */}
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              icon={<Tag className={`w-4 h-4 text-${moduleConfig.accentColor}-600 dark:text-${moduleConfig.accentColor}-400`} />}
-              onClick={() => setIsCategoryManagerOpen(true)}
-              className={`hidden sm:inline-flex hover:border-${moduleConfig.accentColor}-300 dark:hover:border-${moduleConfig.accentColor}-800`}
-            >
-              {moduleConfig.terminology.categories} ({categories.length})
-            </Button>
+          <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+            {/* Manage Categories Button - Only in VitaFin */}
+            {currentModule === 'vitafin' && (
+              <>
+                {/* Desktop */}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  icon={<Tag className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
+                  onClick={() => setIsCategoryManagerOpen(true)}
+                  className="hidden sm:inline-flex hover:border-emerald-300 dark:hover:border-emerald-800"
+                >
+                  {moduleConfig.terminology.categories} ({categories.length})
+                </Button>
 
-            {/* Mobile Category icon button */}
-            <button
-              type="button"
-              onClick={() => setIsCategoryManagerOpen(true)}
-              className="sm:hidden w-8 h-8 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
-              title={`Gerenciar ${moduleConfig.terminology.categories}`}
-            >
-              <Tag className="w-4 h-4" />
-            </button>
+                {/* Mobile Category icon button */}
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryManagerOpen(true)}
+                  className="sm:hidden w-8 h-8 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  title={`Gerenciar ${moduleConfig.terminology.categories}`}
+                >
+                  <Tag className="w-4 h-4" />
+                </button>
+              </>
+            )}
 
             {/* Auth / Cloud Sync Account Button */}
             <button
@@ -216,22 +222,52 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense }) => {
               )}
             </button>
 
-            {/* New Expense Primary CTA (Header) */}
-            <Button
-              type="button"
-              variant={currentModule === 'vitainvest' ? 'primary' : 'success'}
-              size="sm"
-              icon={<Plus className="w-4 h-4" />}
-              onClick={onOpenNewExpense}
-              isLoading={isLoadingData}
-              className={
-                currentModule === 'vitainvest'
-                  ? 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-md shadow-blue-600/25 focus:ring-blue-500 text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 font-semibold'
-                  : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-md shadow-emerald-600/25 focus:ring-emerald-500 text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 font-semibold'
-              }
-            >
-              <span>{moduleConfig.terminology.newExpense}</span>
-            </Button>
+            {/* Actions for VitaInvest */}
+            {currentModule === 'vitainvest' ? (
+              <>
+                {/* Novo Provento Button */}
+                {onOpenNewDividend && (
+                  <Button
+                    type="button"
+                    variant="success"
+                    size="sm"
+                    icon={<Plus className="w-4 h-4" />}
+                    onClick={onOpenNewDividend}
+                    className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-md shadow-emerald-600/25 focus:ring-emerald-500 text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 font-semibold"
+                  >
+                    <span className="hidden sm:inline">Novo Provento</span>
+                    <span className="sm:hidden">Provento</span>
+                  </Button>
+                )}
+
+                {/* Novo Aporte Button */}
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  icon={<Plus className="w-4 h-4" />}
+                  onClick={onOpenNewExpense}
+                  isLoading={isLoadingData}
+                  className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-md shadow-blue-600/25 focus:ring-blue-500 text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 font-semibold"
+                >
+                  <span className="hidden sm:inline">Novo Aporte</span>
+                  <span className="sm:hidden">Aporte</span>
+                </Button>
+              </>
+            ) : (
+              /* Novo Gasto CTA for VitaFin */
+              <Button
+                type="button"
+                variant="success"
+                size="sm"
+                icon={<Plus className="w-4 h-4" />}
+                onClick={onOpenNewExpense}
+                isLoading={isLoadingData}
+                className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-md shadow-emerald-600/25 focus:ring-emerald-500 text-xs sm:text-sm px-3 sm:px-3.5 py-1.5 font-semibold"
+              >
+                <span>{moduleConfig.terminology.newExpense}</span>
+              </Button>
+            )}
           </div>
         </div>
       </header>

@@ -5,6 +5,7 @@ import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Edit3, Trash2, Calendar, DollarSign, Plus } from 'lucide-react';
 import { DividendFormModal } from './DividendFormModal';
+import { formatDate, formatCurrency } from '../../utils/formatters';
 
 interface DividendListModalProps {
   isOpen: boolean;
@@ -13,10 +14,22 @@ interface DividendListModalProps {
   assetTicker: string;
 }
 
+const isFII = (asset?: { ticker?: string; name?: string; type?: string }) => {
+  if (!asset) return false;
+  const ticker = (asset.ticker || '').toUpperCase().trim();
+  const name = (asset.name || '').toUpperCase().trim();
+  const type = asset.type || '';
+  if (type === 'fund') return true;
+  if (name.includes('FII') || name.includes('FUNDO') || name.includes('IMOBILIÁRIO') || name.includes('IMOBILIARIO')) return true;
+  const stockUnits = ['SANB11', 'TAEE11', 'KLBN11', 'ALUP11', 'BPAC11', 'ENGI11', 'TIET11', 'SAPR11', 'SULA11', 'BBDC11', 'BBAS11'];
+  if (ticker.endsWith('11') && !stockUnits.includes(ticker)) return true;
+  return false;
+};
+
 const DIVIDEND_TYPE_LABELS: Record<string, string> = {
-  dividend: 'Dividendo',
+  dividend: 'Dividendos',
   jcp: 'JCP',
-  income: 'Rendimento',
+  income: 'Rendimentos',
   bonus: 'Bonificação',
 };
 
@@ -26,9 +39,14 @@ export const DividendListModal: React.FC<DividendListModalProps> = ({
   assetId,
   assetTicker,
 }) => {
-  const { dividends, deleteDividend } = useInvestment();
+  const { assets, dividends, deleteDividend } = useInvestment();
   const [isDividendFormOpen, setIsDividendFormOpen] = useState(false);
   const [dividendToEdit, setDividendToEdit] = useState<Dividend | null>(null);
+
+  const currentAsset = assets.find(a => a.id === assetId);
+  const isAssetFII = currentAsset ? isFII(currentAsset) : assetTicker.toUpperCase().endsWith('11');
+  const unitSingular = isAssetFII ? 'Cota' : 'Ação';
+  const unitPlural = isAssetFII ? 'Cotas' : 'Ações';
 
   // Filtrar dividendos deste ativo
   const assetDividends = dividends.filter(d => d.assetId === assetId);
@@ -47,18 +65,6 @@ export const DividendListModal: React.FC<DividendListModalProps> = ({
     if (confirm(`Deseja realmente excluir este ${DIVIDEND_TYPE_LABELS[dividend.type]}?`)) {
       deleteDividend(dividend.id);
     }
-  };
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR');
   };
 
   const totalReceived = assetDividends.reduce((sum, d) => sum + d.totalAmount, 0);
@@ -151,7 +157,7 @@ export const DividendListModal: React.FC<DividendListModalProps> = ({
                       </div>
                       <div>
                         <p className="text-slate-600 dark:text-slate-400 text-xs mb-1">
-                          Valor por Ação/Cota
+                          Valor por {unitSingular}
                         </p>
                         <p className="font-bold text-slate-900 dark:text-white">
                           {formatCurrency(dividend.amountPerShare)}
@@ -159,7 +165,7 @@ export const DividendListModal: React.FC<DividendListModalProps> = ({
                       </div>
                       <div>
                         <p className="text-slate-600 dark:text-slate-400 text-xs mb-1">
-                          Quantidade
+                          Quantidade de {unitPlural}
                         </p>
                         <p className="font-bold text-slate-900 dark:text-white">
                           {dividend.quantity}
