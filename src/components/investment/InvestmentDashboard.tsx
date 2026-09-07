@@ -7,6 +7,8 @@ import { Plus, TrendingUp, TrendingDown, DollarSign, Edit3, Trash2, Percent, Rec
 import { AssetFormModal } from './AssetFormModal';
 import { DividendFormModal } from './DividendFormModal';
 import { DividendListModal } from './DividendListModal';
+import { YearSelector } from './YearSelector';
+import { PortfolioEvolutionChart } from './PortfolioEvolutionChart';
 
 const isFII = (asset?: { ticker?: string; name?: string; type?: string }) => {
   if (!asset) return false;
@@ -22,7 +24,7 @@ const isFII = (asset?: { ticker?: string; name?: string; type?: string }) => {
 };
 
 export const InvestmentDashboard: React.FC = () => {
-  const { assets, portfolioStats, deleteAsset, getAssetSummary, updateAllPrices } = useInvestment();
+  const { assets, filteredAssets, portfolioStats, deleteAsset, getAssetSummary, updateAllPrices, selectedYear } = useInvestment();
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [isDividendModalOpen, setIsDividendModalOpen] = useState(false);
   const [isDividendListModalOpen, setIsDividendListModalOpen] = useState(false);
@@ -90,7 +92,10 @@ export const InvestmentDashboard: React.FC = () => {
         onOpenNewDividend={() => setIsDividendModalOpen(true)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-4 sm:space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 space-y-3.5 sm:space-y-6">
+        {/* Seletor e Navegador de Ano */}
+        <YearSelector />
+
         {/* Cards de Métricas */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-4">
           {/* Total Investido */}
@@ -106,7 +111,7 @@ export const InvestmentDashboard: React.FC = () => {
                 {formatCurrency(portfolioStats.totalInvested)}
               </p>
               <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {assets.length} {assets.length === 1 ? 'ativo' : 'ativos'}
+                {filteredAssets.length} {filteredAssets.length === 1 ? 'ativo' : 'ativos'}
               </p>
             </div>
           </div>
@@ -155,7 +160,7 @@ export const InvestmentDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Total Dividendos */}
+          {/* Total Proventos no Ano Selecionado */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between mb-1 sm:mb-2">
               <span className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">Proventos</span>
@@ -169,8 +174,8 @@ export const InvestmentDashboard: React.FC = () => {
               </p>
               <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 {portfolioStats.monthDividends && portfolioStats.monthDividends > 0
-                  ? `Mês: ${formatCurrency(portfolioStats.monthDividends)}`
-                  : 'Total recebido'}
+                  ? `Mês atual: ${formatCurrency(portfolioStats.monthDividends)}`
+                  : `Acumulado de ${selectedYear}`}
               </p>
             </div>
           </div>
@@ -200,18 +205,21 @@ export const InvestmentDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Gráfico de Evolução de Proventos Mensais */}
+        <PortfolioEvolutionChart />
+
         {/* Lista de Ativos */}
-        {assets.length === 0 ? (
+        {filteredAssets.length === 0 ? (
           <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 sm:p-12 border border-slate-200/80 dark:border-slate-800 text-center shadow-sm">
             <div className="max-w-md mx-auto">
               <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 rounded-3xl bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
                 <TrendingUp className="w-8 h-8 sm:w-10 sm:h-10" />
               </div>
               <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white mb-2">
-                Nenhum ativo na carteira
+                Nenhum ativo no ano selecionado
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 mb-6">
-                Comece adicionando seus aportes de ações, fundos imobiliários (FIIs) ou outros investimentos.
+                Não há ativos cadastrados em {selectedYear} ou posteriores.
               </p>
               <Button
                 type="button"
@@ -231,7 +239,7 @@ export const InvestmentDashboard: React.FC = () => {
                 <Layers className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" />
                 Minha Carteira
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                  {assets.length}
+                  {filteredAssets.length}
                 </span>
               </h2>
 
@@ -249,7 +257,7 @@ export const InvestmentDashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:gap-4">
-              {assets.map(asset => {
+              {filteredAssets.map(asset => {
                 const profitLossColor = asset.profitLoss >= 0
                   ? 'text-emerald-600 dark:text-emerald-400'
                   : 'text-rose-600 dark:text-rose-400';
@@ -347,7 +355,7 @@ export const InvestmentDashboard: React.FC = () => {
                         </p>
                       </div>
 
-                      {/* DY Anual (somatório de todos os proventos do ativo no ano corrente) */}
+                      {/* DY Anual (somatório dos proventos do ativo no ano selecionado) */}
                       <div>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">DY Anual</p>
                         <p className="text-xs sm:text-sm font-bold text-teal-600 dark:text-teal-400">
@@ -356,9 +364,9 @@ export const InvestmentDashboard: React.FC = () => {
                       </div>
 
                       <div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">Proventos Pagos</p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">Proventos</p>
                         <p className="text-xs sm:text-sm font-bold text-teal-600 dark:text-teal-400">
-                          {summary && summary.totalDividends > 0 ? formatCurrency(summary.totalDividends) : 'R$ 0,00'}
+                          {summary && summary.yearDividends > 0 ? formatCurrency(summary.yearDividends) : 'R$ 0,00'}
                         </p>
                       </div>
                     </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { Asset, Transaction, Dividend, AssetSummary, PortfolioStats } from '../types/investment';
 import { fetchMultipleStockPrices } from '../services/stockQuotes';
 import { useAuth } from './AuthContext';
@@ -6,10 +6,19 @@ import { supabase } from '../services/supabase';
 
 interface InvestmentContextType {
   assets: Asset[];
+  filteredAssets: Asset[];   // Ativos visíveis no ano selecionado (createdAt <= ano selecionado)
   transactions: Transaction[];
   dividends: Dividend[];
   portfolioStats: PortfolioStats;
   isLoadingData: boolean;
+
+  // Navegação por Ano
+  selectedYear: string;
+  setSelectedYear: (year: string) => void;
+  goToPreviousYear: () => void;
+  goToNextYear: () => void;
+  goToCurrentYear: () => void;
+  availableYears: string[];
 
   // CRUD Ativos
   addAsset: (asset: Omit<Asset, 'id' | 'createdAt'>) => Asset;
@@ -45,6 +54,8 @@ const STORAGE_KEY = 'vitainvest-data';
 
 export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
+  const currentRealYear = String(new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = useState<string>(currentRealYear);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [dividends, setDividends] = useState<Dividend[]>([]);
@@ -59,6 +70,49 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
     assetsCount: 0,
     assetsSummaries: [],
   });
+
+  // Funções de Navegação de Ano
+  const goToPreviousYear = useCallback(() => {
+    setSelectedYear(prev => String(parseInt(prev, 10) - 1));
+  }, []);
+
+  const goToNextYear = useCallback(() => {
+    setSelectedYear(prev => String(parseInt(prev, 10) + 1));
+  }, []);
+
+  const goToCurrentYear = useCallback(() => {
+    setSelectedYear(currentRealYear);
+  }, [currentRealYear]);
+
+  // Lista de anos disponíveis (calculada dinamicamente dos dados + ano atual)
+  const availableYears = useMemo(() => {
+    const yearSet = new Set<string>();
+    yearSet.add(currentRealYear);
+    dividends.forEach(d => {
+      if (d.paymentDate && d.paymentDate.length >= 4) {
+        yearSet.add(d.paymentDate.substring(0, 4));
+      }
+    });
+    transactions.forEach(t => {
+      if (t.date && t.date.length >= 4) {
+        yearSet.add(t.date.substring(0, 4));
+      }
+    });
+    assets.forEach(a => {
+      if (a.createdAt && a.createdAt.length >= 4) {
+        yearSet.add(a.createdAt.substring(0, 4));
+      }
+    });
+    return Array.from(yearSet).sort((a, b) => b.localeCompare(a));
+  }, [dividends, transactions, assets, currentRealYear]);
+
+  // Ativos visíveis no ano selecionado: só aparecem a partir do ano em que foram cadastrados
+  const filteredAssets = useMemo(() => {
+    return assets.filter(a => {
+      const assetYear = a.createdAt ? a.createdAt.substring(0, 4) : currentRealYear;
+      return assetYear <= selectedYear;
+    });
+  }, [assets, selectedYear, currentRealYear]);
 
   // --- Sincronização com o Supabase ---
 
@@ -600,25 +654,25 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
     if (!asset) return null;
 
     const now = new Date();
-    const currentYear = String(now.getFullYear());
-    const currentYearMonth = `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const targetYear = selectedYear || String(now.getFullYear());
+    const currentRealMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const targetYearMonth = `${targetYear}-${currentRealMonth}`;
 
     const assetTransactions = transactions.filter(t => t.assetId === assetId);
     const assetDividends = dividends.filter(d => d.assetId === assetId);
-    const totalDividends = assetDividends.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
-
-    // Proventos do ano corrente para cálculo do DY Anual
+    // Proventos do ano selecionado (total e yield)
     const assetYearDividends = assetDividends.filter(
-      d => d.paymentDate && d.paymentDate.startsWith(currentYear)
+      d => d.paymentDate && d.paymentDate.startsWith(targetYear)
     );
-    const yearDividends = assetYearDividends.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
+    const totalDividends = assetYearDividends.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
+    const yearDividends = totalDividends;
     const yearDividendYield = asset.totalInvested > 0
       ? (yearDividends / asset.totalInvested) * 100
       : 0;
 
-    // Proventos do mês corrente para cálculo do DY do Mês
+    // Proventos do mês selecionado para cálculo do DY do Mês
     const assetMonthDividends = assetDividends.filter(
-      d => d.paymentDate && d.paymentDate.startsWith(currentYearMonth)
+      d => d.paymentDate && d.paymentDate.startsWith(targetYearMonth)
     );
     const monthDividends = assetMonthDividends.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
     const monthDividendYield = asset.totalInvested > 0
@@ -638,41 +692,44 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
       transactions: assetTransactions,
       dividends: assetDividends,
     };
-  }, [assets, transactions, dividends]);
+  }, [assets, transactions, dividends, selectedYear]);
 
   const recalculatePortfolio = useCallback(() => {
     const now = new Date();
-    const currentYear = String(now.getFullYear());
-    const currentYearMonth = `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const targetYear = selectedYear || String(now.getFullYear());
+    const currentRealMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const targetYearMonth = `${targetYear}-${currentRealMonth}`;
 
-    const totalInvested = assets.reduce((sum, a) => sum + (a.totalInvested || 0), 0);
-    const currentValue = assets.reduce((sum, a) => sum + (a.currentValue || 0), 0);
+    // Usar apenas ativos visíveis no ano selecionado
+    const visibleAssets = filteredAssets;
+
+    const totalInvested = visibleAssets.reduce((sum, a) => sum + (a.totalInvested || 0), 0);
+    const currentValue = visibleAssets.reduce((sum, a) => sum + (a.currentValue || 0), 0);
     const totalProfitLoss = currentValue - totalInvested;
     const profitLossPercent = totalInvested > 0
       ? (totalProfitLoss / totalInvested) * 100
       : 0;
 
-    const totalDividends = dividends.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
-
-    // Proventos do ano corrente
+    // Proventos do ano selecionado (somente de ativos visíveis)
+    const visibleAssetIds = new Set(visibleAssets.map(a => a.id));
     const yearDividends = dividends
-      .filter(d => d.paymentDate && d.paymentDate.startsWith(currentYear))
+      .filter(d => d.paymentDate && d.paymentDate.startsWith(targetYear) && visibleAssetIds.has(d.assetId))
       .reduce((sum, d) => sum + (d.totalAmount || 0), 0);
 
     const averageDividendYield = totalInvested > 0
       ? (yearDividends / totalInvested) * 100
       : 0;
 
-    // Proventos do mês corrente
+    // Proventos do mês no ano selecionado
     const monthDividends = dividends
-      .filter(d => d.paymentDate && d.paymentDate.startsWith(currentYearMonth))
+      .filter(d => d.paymentDate && d.paymentDate.startsWith(targetYearMonth) && visibleAssetIds.has(d.assetId))
       .reduce((sum, d) => sum + (d.totalAmount || 0), 0);
 
     const monthDividendYield = totalInvested > 0
       ? (monthDividends / totalInvested) * 100
       : 0;
 
-    const assetsSummaries = assets
+    const assetsSummaries = visibleAssets
       .map(asset => getAssetSummary(asset.id))
       .filter((s): s is AssetSummary => s !== null);
 
@@ -681,20 +738,20 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
       currentValue,
       totalProfitLoss,
       profitLossPercent,
-      totalDividends,
+      totalDividends: yearDividends,
       averageDividendYield,
       monthDividends,
       monthDividendYield,
       yearDividends,
-      assetsCount: assets.length,
+      assetsCount: visibleAssets.length,
       assetsSummaries,
     });
-  }, [assets, dividends, getAssetSummary]);
+  }, [filteredAssets, dividends, selectedYear, getAssetSummary]);
 
-  // Recalcular sempre que assets ou dividends mudarem
+  // Recalcular sempre que filteredAssets, dividends ou selectedYear mudarem
   useEffect(() => {
     recalculatePortfolio();
-  }, [assets, dividends, recalculatePortfolio]);
+  }, [filteredAssets, dividends, selectedYear, recalculatePortfolio]);
 
   // Atualizar preços em tempo real
   const updateAllPrices = async () => {
@@ -740,10 +797,17 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
     <InvestmentContext.Provider
       value={{
         assets,
+        filteredAssets,
         transactions,
         dividends,
         portfolioStats,
         isLoadingData,
+        selectedYear,
+        setSelectedYear,
+        goToPreviousYear,
+        goToNextYear,
+        goToCurrentYear,
+        availableYears,
         addAsset,
         updateAsset,
         deleteAsset,

@@ -66,13 +66,13 @@ export interface Dividend {
 // Resumo de um ativo com seus proventos
 export interface AssetSummary {
   asset: Asset;
-  totalDividends: number;      // Total histórico de proventos recebidos
-  dividendYield: number;       // DY% Anual = (yearDividends / totalInvested) * 100
-  yearDividends: number;       // Total de proventos recebidos no ano atual
-  yearDividendYield: number;   // DY% Anual do ativo no ano corrente
-  monthDividends: number;      // Total de proventos recebidos no mês atual
-  monthDividendYield: number;  // DY% do Mês atual
-  hasMonthDividends: boolean;  // Indica se possui provento recebido no mês atual
+  totalDividends: number;      // Total de proventos recebidos no ano selecionado
+  dividendYield: number;       // DY% Anual = (yearDividends / totalInvested) * 100, baseado no ano selecionado
+  yearDividends: number;       // Total de proventos recebidos no ano selecionado
+  yearDividendYield: number;   // DY% Anual do ativo no ano corrente (ano selecionado)
+  monthDividends: number;      // Total de proventos recebidos no mês corrente (ano selecionado)
+  monthDividendYield: number;  // DY% do Mês atual (ano selecionado)
+  hasMonthDividends: boolean;  // Indica se possui provento recebido no mês corrente (ano selecionado)
   transactions: Transaction[]; // Histórico de transações
   dividends: Dividend[];       // Histórico de proventos
 }
