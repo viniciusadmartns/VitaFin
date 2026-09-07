@@ -37,29 +37,29 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense, onOpenNewDivid
   return (
     <>
       <header className="sticky top-0 z-30 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 transition-colors">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
+        <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-1.5 sm:gap-4">
           {/* Logo & Brand */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-full overflow-hidden shadow-sm flex-shrink-0 border border-slate-200/80 dark:border-slate-800 bg-white p-0.5 sm:p-1 flex items-center justify-center">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+            <div className="w-8 h-8 sm:w-11 sm:h-11 rounded-full overflow-hidden shadow-sm flex-shrink-0 border border-slate-200/80 dark:border-slate-800 bg-white p-0.5 sm:p-1 flex items-center justify-center">
               <img
                 src={logoImg}
                 alt={`${moduleConfig.name} Logo`}
                 className="w-full h-full object-contain rounded-full"
               />
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
+            <div className="flex-shrink-0">
+              <div className="flex items-center gap-1 sm:gap-1.5">
                 {/* Module Selector Button */}
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setIsModuleSelectorOpen(!isModuleSelectorOpen)}
-                    className="flex items-center gap-1 hover:opacity-80 transition-opacity focus:outline-none"
+                    className="flex items-center gap-0.5 sm:gap-1 hover:opacity-80 transition-opacity focus:outline-none"
                   >
-                    <h1 className="text-base sm:text-xl font-black tracking-tight text-slate-900 dark:text-white truncate">
+                    <h1 className="text-sm xs:text-base sm:text-xl font-black tracking-tight text-slate-900 dark:text-white whitespace-nowrap">
                       Vita<span className={`bg-gradient-to-r ${moduleConfig.gradient} bg-clip-text text-transparent`}>{moduleConfig.shortName}</span>
                     </h1>
-                    <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 flex-shrink-0" />
+                    <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-slate-400 flex-shrink-0" />
                   </button>
 
                   {/* Module Selector Dropdown */}
@@ -155,7 +155,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense, onOpenNewDivid
           </div>
 
           {/* Right Action buttons */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2.5 flex-shrink-0">
             {/* Manage Categories Button - Only in VitaFin */}
             {currentModule === 'vitafin' && (
               <>
@@ -175,10 +175,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense, onOpenNewDivid
                 <button
                   type="button"
                   onClick={() => setIsCategoryManagerOpen(true)}
-                  className="sm:hidden w-8 h-8 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+                  className="sm:hidden w-7 h-7 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                   title={`Gerenciar ${moduleConfig.terminology.categories}`}
                 >
-                  <Tag className="w-4 h-4" />
+                  <Tag className="w-3.5 h-3.5" />
                 </button>
               </>
             )}
@@ -187,7 +187,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense, onOpenNewDivid
             <button
               type="button"
               onClick={() => setIsAuthModalOpen(true)}
-              className={`h-8 px-2 sm:h-9 sm:px-2.5 rounded-xl transition-colors flex items-center gap-1.5 ${
+              className={`h-7 w-7 sm:h-9 sm:w-auto sm:px-2.5 rounded-lg sm:rounded-xl transition-colors flex items-center justify-center sm:justify-start gap-1.5 ${
                 user
                   ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/80'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
@@ -196,15 +196,15 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense, onOpenNewDivid
             >
               {user ? (
                 <>
-                  <Cloud className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <Cloud className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400" />
                   <span className="text-xs font-semibold hidden md:inline max-w-[120px] truncate">
                     {user.email?.split('@')[0]}
                   </span>
                 </>
               ) : isConfigured ? (
-                <User className="w-4 h-4" />
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               ) : (
-                <CloudOff className="w-4 h-4 text-slate-400" />
+                <CloudOff className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" />
               )}
             </button>
 
@@ -212,13 +212,13 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense, onOpenNewDivid
             <button
               type="button"
               onClick={toggleTheme}
-              className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              className="w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg sm:rounded-xl transition-colors"
               title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
             >
               {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-amber-400" />
+                <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
               ) : (
-                <Moon className="w-4 h-4 text-slate-600" />
+                <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-600" />
               )}
             </button>
 
@@ -227,32 +227,28 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense, onOpenNewDivid
               <>
                 {/* Novo Provento Button */}
                 {onOpenNewDividend && (
-                  <Button
+                  <button
                     type="button"
-                    variant="success"
-                    size="sm"
-                    icon={<Plus className="w-4 h-4" />}
                     onClick={onOpenNewDividend}
-                    className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-md shadow-emerald-600/25 focus:ring-emerald-500 text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 font-semibold"
+                    className="bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-sm shadow-emerald-600/25 rounded-lg sm:rounded-xl text-xs sm:text-sm px-2 sm:px-3.5 py-1.5 font-semibold flex items-center gap-1 transition-colors flex-shrink-0"
                   >
+                    <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span className="hidden sm:inline">Novo Provento</span>
                     <span className="sm:hidden">Provento</span>
-                  </Button>
+                  </button>
                 )}
 
                 {/* Novo Aporte Button */}
-                <Button
+                <button
                   type="button"
-                  variant="primary"
-                  size="sm"
-                  icon={<Plus className="w-4 h-4" />}
                   onClick={onOpenNewExpense}
-                  isLoading={isLoadingData}
-                  className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-md shadow-blue-600/25 focus:ring-blue-500 text-xs sm:text-sm px-2.5 sm:px-3.5 py-1.5 font-semibold"
+                  disabled={isLoadingData}
+                  className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-sm shadow-blue-600/25 rounded-lg sm:rounded-xl text-xs sm:text-sm px-2 sm:px-3.5 py-1.5 font-semibold flex items-center gap-1 transition-colors flex-shrink-0"
                 >
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:inline">Novo Aporte</span>
                   <span className="sm:hidden">Aporte</span>
-                </Button>
+                </button>
               </>
             ) : (
               /* Novo Gasto CTA for VitaFin */

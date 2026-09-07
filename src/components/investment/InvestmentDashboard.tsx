@@ -245,7 +245,7 @@ export const InvestmentDashboard: React.FC = () => {
                             </span>
                           </div>
                           <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                            {asset.quantity} {unitLabel} • Preço Médio: {formatCurrency(asset.averagePrice)}
+                            {asset.quantity} {unitLabel} • <span className="sm:hidden">PM: </span><span className="hidden sm:inline">Preço Médio: </span>{formatCurrency(asset.averagePrice)}
                           </p>
                         </div>
                       </div>
