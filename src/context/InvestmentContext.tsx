@@ -557,23 +557,52 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
     const asset = assets.find(a => a.id === assetId);
     if (!asset) return null;
 
+    const now = new Date();
+    const currentYear = String(now.getFullYear());
+    const currentYearMonth = `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
     const assetTransactions = transactions.filter(t => t.assetId === assetId);
     const assetDividends = dividends.filter(d => d.assetId === assetId);
     const totalDividends = assetDividends.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
-    const dividendYield = asset.totalInvested > 0
-      ? (totalDividends / asset.totalInvested) * 100
+
+    // Proventos do ano corrente para cálculo do DY Anual
+    const assetYearDividends = assetDividends.filter(
+      d => d.paymentDate && d.paymentDate.startsWith(currentYear)
+    );
+    const yearDividends = assetYearDividends.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
+    const yearDividendYield = asset.totalInvested > 0
+      ? (yearDividends / asset.totalInvested) * 100
       : 0;
+
+    // Proventos do mês corrente para cálculo do DY do Mês
+    const assetMonthDividends = assetDividends.filter(
+      d => d.paymentDate && d.paymentDate.startsWith(currentYearMonth)
+    );
+    const monthDividends = assetMonthDividends.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
+    const monthDividendYield = asset.totalInvested > 0
+      ? (monthDividends / asset.totalInvested) * 100
+      : 0;
+    const hasMonthDividends = assetMonthDividends.length > 0 && monthDividends > 0;
 
     return {
       asset,
       totalDividends,
-      dividendYield,
+      dividendYield: yearDividendYield,
+      yearDividends,
+      yearDividendYield,
+      monthDividends,
+      monthDividendYield,
+      hasMonthDividends,
       transactions: assetTransactions,
       dividends: assetDividends,
     };
   }, [assets, transactions, dividends]);
 
   const recalculatePortfolio = useCallback(() => {
+    const now = new Date();
+    const currentYear = String(now.getFullYear());
+    const currentYearMonth = `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
     const totalInvested = assets.reduce((sum, a) => sum + (a.totalInvested || 0), 0);
     const currentValue = assets.reduce((sum, a) => sum + (a.currentValue || 0), 0);
     const totalProfitLoss = currentValue - totalInvested;
@@ -582,8 +611,23 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
       : 0;
 
     const totalDividends = dividends.reduce((sum, d) => sum + (d.totalAmount || 0), 0);
+
+    // Proventos do ano corrente
+    const yearDividends = dividends
+      .filter(d => d.paymentDate && d.paymentDate.startsWith(currentYear))
+      .reduce((sum, d) => sum + (d.totalAmount || 0), 0);
+
     const averageDividendYield = totalInvested > 0
-      ? (totalDividends / totalInvested) * 100
+      ? (yearDividends / totalInvested) * 100
+      : 0;
+
+    // Proventos do mês corrente
+    const monthDividends = dividends
+      .filter(d => d.paymentDate && d.paymentDate.startsWith(currentYearMonth))
+      .reduce((sum, d) => sum + (d.totalAmount || 0), 0);
+
+    const monthDividendYield = totalInvested > 0
+      ? (monthDividends / totalInvested) * 100
       : 0;
 
     const assetsSummaries = assets
@@ -597,6 +641,9 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
       profitLossPercent,
       totalDividends,
       averageDividendYield,
+      monthDividends,
+      monthDividendYield,
+      yearDividends,
       assetsCount: assets.length,
       assetsSummaries,
     });

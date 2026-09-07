@@ -147,26 +147,34 @@ export const InvestmentDashboard: React.FC = () => {
                 {formatCurrency(portfolioStats.totalDividends)}
               </p>
               <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Recebidos
+                {portfolioStats.monthDividends && portfolioStats.monthDividends > 0
+                  ? `Mês: ${formatCurrency(portfolioStats.monthDividends)}`
+                  : 'Total recebido'}
               </p>
             </div>
           </div>
 
-          {/* Dividend Yield */}
+          {/* DY Médio */}
           <div className="col-span-2 sm:col-span-1 lg:col-span-1 bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
             <div className="flex items-center justify-between mb-1 sm:mb-2">
-              <span className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">Dividend Yield</span>
+              <span className="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400">DY Médio</span>
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center flex-shrink-0">
                 <Percent className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 dark:text-purple-400" />
               </div>
             </div>
-            <div>
-              <p className="text-base sm:text-xl lg:text-2xl font-black text-purple-600 dark:text-purple-400 truncate">
-                {portfolioStats.averageDividendYield.toFixed(2)}%
-              </p>
-              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                DY médio da carteira
-              </p>
+            <div className="grid grid-cols-2 gap-2 pt-0.5">
+              <div>
+                <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium block">DY Mês</span>
+                <p className="text-sm sm:text-lg lg:text-xl font-bold text-emerald-600 dark:text-emerald-400 truncate">
+                  {(portfolioStats.monthDividendYield || 0).toFixed(2)}%
+                </p>
+              </div>
+              <div>
+                <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium block">DY Anual</span>
+                <p className="text-sm sm:text-lg lg:text-xl font-black text-purple-600 dark:text-purple-400 truncate">
+                  {portfolioStats.averageDividendYield.toFixed(2)}%
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -214,7 +222,6 @@ export const InvestmentDashboard: React.FC = () => {
                   : 'text-rose-600 dark:text-rose-400';
 
                 const summary = getAssetSummary(asset.id);
-                const assetDY = summary ? summary.dividendYield : 0;
                 const fii = isFII(asset);
                 const unitLabel = fii
                   ? (asset.quantity === 1 ? 'cota' : 'cotas')
@@ -277,7 +284,7 @@ export const InvestmentDashboard: React.FC = () => {
                     </div>
 
                     {/* Grade de Indicadores Responsiva */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 p-2.5 sm:p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 p-2.5 sm:p-3.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60">
                       <div>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">Preço Atual</p>
                         <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
@@ -295,10 +302,23 @@ export const InvestmentDashboard: React.FC = () => {
                         </p>
                       </div>
 
+                      {/* DY do Mês (exibido em todos os ativos) */}
+                      <div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">DY Mês</p>
+                        <p className={`text-xs sm:text-sm font-bold ${
+                          summary && summary.monthDividendYield > 0
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-slate-700 dark:text-slate-300'
+                        }`}>
+                          {(summary ? summary.monthDividendYield : 0).toFixed(2)}%
+                        </p>
+                      </div>
+
+                      {/* DY Anual (somatório de todos os proventos do ativo no ano corrente) */}
                       <div>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">DY Anual</p>
                         <p className="text-xs sm:text-sm font-bold text-teal-600 dark:text-teal-400">
-                          {assetDY.toFixed(2)}%
+                          {(summary ? summary.yearDividendYield : 0).toFixed(2)}%
                         </p>
                       </div>
 
