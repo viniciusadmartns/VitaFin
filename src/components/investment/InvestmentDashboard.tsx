@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useInvestment } from '../../context/InvestmentContext';
 import { Asset } from '../../types/investment';
 import { Header } from '../layout/Header';
 import { Button } from '../common/Button';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Edit3, Trash2, Percent, Receipt, Wallet, Layers } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Edit3, Trash2, Percent, Receipt, Wallet, Layers, RefreshCw } from 'lucide-react';
 import { AssetFormModal } from './AssetFormModal';
 import { DividendFormModal } from './DividendFormModal';
 import { DividendListModal } from './DividendListModal';
@@ -22,12 +22,33 @@ const isFII = (asset?: { ticker?: string; name?: string; type?: string }) => {
 };
 
 export const InvestmentDashboard: React.FC = () => {
-  const { assets, portfolioStats, deleteAsset, getAssetSummary } = useInvestment();
+  const { assets, portfolioStats, deleteAsset, getAssetSummary, updateAllPrices } = useInvestment();
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [isDividendModalOpen, setIsDividendModalOpen] = useState(false);
   const [isDividendListModalOpen, setIsDividendListModalOpen] = useState(false);
   const [assetToEdit, setAssetToEdit] = useState<Asset | null>(null);
   const [selectedAssetForDividends, setSelectedAssetForDividends] = useState<{ id: string; ticker: string } | null>(null);
+  const [isUpdatingPrices, setIsUpdatingPrices] = useState(false);
+
+  // Atualização de preços via Brapi
+  const handleRefreshPrices = async () => {
+    if (assets.length === 0 || isUpdatingPrices) return;
+    setIsUpdatingPrices(true);
+    try {
+      await updateAllPrices();
+    } catch (err) {
+      console.error('Erro ao atualizar cotações:', err);
+    } finally {
+      setIsUpdatingPrices(false);
+    }
+  };
+
+  // Atualizar cotações automaticamente quando a carteira possuir ativos
+  useEffect(() => {
+    if (assets.length > 0) {
+      updateAllPrices();
+    }
+  }, [assets.length]);
 
   const handleEditAsset = (asset: Asset) => {
     setAssetToEdit(asset);
@@ -164,13 +185,13 @@ export const InvestmentDashboard: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-2 pt-0.5">
               <div>
-                <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium block">DY Mês</span>
+                <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium block">Mensal</span>
                 <p className="text-sm sm:text-lg lg:text-xl font-bold text-emerald-600 dark:text-emerald-400 truncate">
                   {(portfolioStats.monthDividendYield || 0).toFixed(2)}%
                 </p>
               </div>
               <div>
-                <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium block">DY Anual</span>
+                <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium block">Anual</span>
                 <p className="text-sm sm:text-lg lg:text-xl font-black text-purple-600 dark:text-purple-400 truncate">
                   {portfolioStats.averageDividendYield.toFixed(2)}%
                 </p>
@@ -213,6 +234,18 @@ export const InvestmentDashboard: React.FC = () => {
                   {assets.length}
                 </span>
               </h2>
+
+              <button
+                type="button"
+                onClick={handleRefreshPrices}
+                disabled={isUpdatingPrices}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 transition-all shadow-sm disabled:opacity-60 cursor-pointer"
+                title="Atualizar cotações em tempo real via Brapi"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-blue-600 dark:text-blue-400 ${isUpdatingPrices ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{isUpdatingPrices ? 'Atualizando Cotações...' : 'Atualizar Cotações'}</span>
+                <span className="sm:hidden">{isUpdatingPrices ? '...' : 'Atualizar'}</span>
+              </button>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:gap-4">

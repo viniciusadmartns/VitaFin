@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Asset, AssetType } from '../../types/investment';
 import { useInvestment } from '../../context/InvestmentContext';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import { TrendingUp, DollarSign, Hash, Layers, ArrowUpRight } from 'lucide-react';
+import { DollarSign, Hash, Layers, ArrowUpRight, RefreshCw, Sparkles } from 'lucide-react';
 import { formatCurrency } from '../../utils/formatters';
+import { fetchStockQuoteInfo, StockQuote } from '../../services/stockQuotes';
 
 interface AssetFormModalProps {
   isOpen: boolean;
@@ -44,7 +45,11 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
   // String states para inputs decimais
   const [quantityStr, setQuantityStr] = useState('');
   const [averagePriceStr, setAveragePriceStr] = useState('');
-  const [currentPriceStr, setCurrentPriceStr] = useState('');
+
+  // Brapi Quote em tempo real
+  const [quoteInfo, setQuoteInfo] = useState<StockQuote | null>(null);
+  const [isFetchingQuote, setIsFetchingQuote] = useState(false);
+  const quoteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -61,7 +66,7 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
       });
       setQuantityStr(assetToEdit.quantity.toString());
       setAveragePriceStr(assetToEdit.averagePrice.toFixed(2).replace('.', ','));
-      setCurrentPriceStr(assetToEdit.currentPrice.toFixed(2).replace('.', ','));
+      setQuoteInfo(null);
     } else {
       setFormData({
         ticker: '',
@@ -74,10 +79,65 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
       });
       setQuantityStr('');
       setAveragePriceStr('');
-      setCurrentPriceStr('');
+      setQuoteInfo(null);
     }
     setErrors({});
   }, [assetToEdit, isOpen]);
+
+  // Buscar cotação em tempo real via Brapi quando o ticker for digitado
+  useEffect(() => {
+    const cleanTicker = formData.ticker.toUpperCase().trim();
+
+    if (quoteTimeoutRef.current) {
+      clearTimeout(quoteTimeoutRef.current);
+    }
+
+    if (!cleanTicker || cleanTicker.length < 4) {
+      setQuoteInfo(null);
+      setIsFetchingQuote(false);
+      return;
+    }
+
+    quoteTimeoutRef.current = setTimeout(async () => {
+      setIsFetchingQuote(true);
+      try {
+        const quote = await fetchStockQuoteInfo(cleanTicker);
+        if (quote && quote.regularMarketPrice > 0) {
+          setQuoteInfo(quote);
+          const priceFormatted = quote.regularMarketPrice.toFixed(2).replace('.', ',');
+
+          // Atualizar o preço atual internamente com o valor real da API
+          setFormData(prev => ({
+            ...prev,
+            currentPrice: quote.regularMarketPrice,
+            name: quote.shortName || quote.longName || prev.name || cleanTicker,
+            type: isFII({ ticker: cleanTicker, name: quote.longName }) ? 'fund' : 'stock',
+          }));
+
+          // Se o preço de compra estiver vazio, sugerir o preço atual da cotação
+          setAveragePriceStr(prev => {
+            if (!prev || prev === '0' || prev === '0,00') {
+              setFormData(f => ({ ...f, averagePrice: quote.regularMarketPrice }));
+              return priceFormatted;
+            }
+            return prev;
+          });
+        } else {
+          setQuoteInfo(null);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar cotação Brapi:', err);
+      } finally {
+        setIsFetchingQuote(false);
+      }
+    }, 450);
+
+    return () => {
+      if (quoteTimeoutRef.current) {
+        clearTimeout(quoteTimeoutRef.current);
+      }
+    };
+  }, [formData.ticker]);
 
   // Verificar se o ticker digitado já existe na carteira (quando for novo aporte)
   const normalizedTicker = formData.ticker.toUpperCase().trim();
@@ -88,13 +148,9 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
   const isAssetFII = isFII(existingAsset || { ticker: formData.ticker });
   const unitPlural = isAssetFII ? 'cotas' : 'ações';
 
-  // Ao identificar ativo existente, se preço atual não foi digitado, sugerir
   const handleTickerBlur = () => {
-    if (existingAsset) {
-      if (!currentPriceStr && existingAsset.currentPrice > 0) {
-        setCurrentPriceStr(existingAsset.currentPrice.toFixed(2).replace('.', ','));
-        setFormData(prev => ({ ...prev, currentPrice: existingAsset.currentPrice }));
-      }
+    if (existingAsset && formData.currentPrice <= 0 && existingAsset.currentPrice > 0) {
+      setFormData(prev => ({ ...prev, currentPrice: existingAsset.currentPrice }));
     }
   };
 
@@ -123,15 +179,6 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
     }
   };
 
-  const handleCurrentPriceChange = (value: string) => {
-    setCurrentPriceStr(value);
-    const numValue = parseDecimal(value);
-    setFormData(prev => ({ ...prev, currentPrice: numValue }));
-    if (errors.currentPrice) {
-      setErrors(prev => ({ ...prev, currentPrice: '' }));
-    }
-  };
-
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
@@ -144,9 +191,6 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
     if (formData.averagePrice <= 0) {
       newErrors.averagePrice = 'Preço de compra deve ser maior que zero';
     }
-    if (formData.currentPrice < 0) {
-      newErrors.currentPrice = 'Preço atual não pode ser negativo';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -158,7 +202,14 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
     if (!validate()) return;
 
     const totalInvested = formData.quantity * formData.averagePrice;
-    const currentPrice = formData.currentPrice || formData.averagePrice;
+    const currentPrice = formData.currentPrice > 0
+      ? formData.currentPrice
+      : (quoteInfo?.regularMarketPrice && quoteInfo.regularMarketPrice > 0
+          ? quoteInfo.regularMarketPrice
+          : (existingAsset?.currentPrice && existingAsset.currentPrice > 0
+              ? existingAsset.currentPrice
+              : formData.averagePrice));
+
     const currentValue = formData.quantity * currentPrice;
     const profitLoss = currentValue - totalInvested;
     const profitLossPercent = totalInvested > 0 ? (profitLoss / totalInvested) * 100 : 0;
@@ -193,7 +244,10 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
 
   // Cálculos para exibição
   const singleTotalInvested = formData.quantity * formData.averagePrice;
-  const singleCurrentValue = formData.quantity * (formData.currentPrice || formData.averagePrice);
+  const singleCurrentPrice = formData.currentPrice > 0
+    ? formData.currentPrice
+    : (quoteInfo?.regularMarketPrice || formData.averagePrice);
+  const singleCurrentValue = formData.quantity * singleCurrentPrice;
   const singleProfitLoss = singleCurrentValue - singleTotalInvested;
   const singleProfitLossPercent = singleTotalInvested > 0 ? (singleProfitLoss / singleTotalInvested) * 100 : 0;
 
@@ -216,9 +270,11 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
 
   const effectiveCurrentPrice = formData.currentPrice > 0
     ? formData.currentPrice
-    : (existingAsset && existingAsset.currentPrice > 0
-        ? existingAsset.currentPrice
-        : (newAportePrice > 0 ? newAportePrice : consolidatedAveragePrice));
+    : (quoteInfo?.regularMarketPrice && quoteInfo.regularMarketPrice > 0
+        ? quoteInfo.regularMarketPrice
+        : (existingAsset && existingAsset.currentPrice > 0
+            ? existingAsset.currentPrice
+            : (newAportePrice > 0 ? newAportePrice : consolidatedAveragePrice)));
 
   const consolidatedCurrentValue = consolidatedQuantity * effectiveCurrentPrice;
   const consolidatedProfitLoss = consolidatedCurrentValue - consolidatedTotalInvested;
@@ -240,9 +296,17 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Ticker */}
         <div>
-          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-            Código do Ativo (Ticker)
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300">
+              Código do Ativo (Ticker)
+            </label>
+            {isFetchingQuote && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 font-medium animate-pulse">
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                Buscando na Brapi...
+              </span>
+            )}
+          </div>
           <input
             type="text"
             list="portfolio-assets-list"
@@ -269,6 +333,49 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
           {errors.ticker && (
             <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{errors.ticker}</p>
           )}
+
+          {/* Feedback da Cotação em Tempo Real via Brapi */}
+          {quoteInfo && (
+            <div className="mt-2 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl p-2.5 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                {quoteInfo.logourl ? (
+                  <img
+                    src={quoteInfo.logourl}
+                    alt={quoteInfo.symbol}
+                    className="w-5 h-5 rounded-full object-contain bg-white p-0.5 border border-slate-200 dark:border-slate-600 flex-shrink-0"
+                    onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center text-blue-600 dark:text-blue-400 flex-shrink-0">
+                    <Sparkles className="w-3 h-3" />
+                  </div>
+                )}
+                <div className="min-w-0 truncate">
+                  <span className="font-bold text-slate-900 dark:text-white">{quoteInfo.symbol}</span>
+                  {quoteInfo.shortName && (
+                    <span className="text-slate-500 dark:text-slate-400 ml-1.5 truncate">
+                      {quoteInfo.shortName}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right flex-shrink-0 pl-2">
+                <span className="font-bold text-blue-600 dark:text-blue-400">
+                  {formatCurrency(quoteInfo.regularMarketPrice)}
+                </span>
+                {quoteInfo.regularMarketChangePercent !== undefined && (
+                  <span className={`ml-1 text-[11px] font-semibold ${
+                    quoteInfo.regularMarketChangePercent >= 0
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-rose-600 dark:text-rose-400'
+                  }`}>
+                    {quoteInfo.regularMarketChangePercent >= 0 ? '+' : ''}
+                    {quoteInfo.regularMarketChangePercent.toFixed(2)}%
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Aviso de ativo existente na carteira */}
@@ -287,8 +394,8 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
           </div>
         )}
 
-        {/* Quantidade e Preços */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Quantidade e Preço de Compra */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
               <Hash className="w-4 h-4 inline mr-1" />
@@ -330,28 +437,6 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
             />
             {errors.averagePrice && (
               <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{errors.averagePrice}</p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-              <TrendingUp className="w-4 h-4 inline mr-1" />
-              Preço Atual
-            </label>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={currentPriceStr}
-              onChange={(e) => handleCurrentPriceChange(e.target.value)}
-              placeholder="R$ 28,00"
-              className={`w-full px-4 py-2.5 rounded-xl border ${
-                errors.currentPrice
-                  ? 'border-rose-300 dark:border-rose-700'
-                  : 'border-slate-300 dark:border-slate-600'
-              } bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-            />
-            {errors.currentPrice && (
-              <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{errors.currentPrice}</p>
             )}
           </div>
         </div>
@@ -396,7 +481,7 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
                 <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(consolidatedTotalInvested)}</span>
               </div>
               <div className="text-right">
-                <span className="text-slate-500 dark:text-slate-400 text-xs block">Valor Atual:</span>
+                <span className="text-slate-500 dark:text-slate-400 text-xs block">Valor Atual (Real):</span>
                 <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(consolidatedCurrentValue)}</span>
               </div>
             </div>
@@ -419,7 +504,7 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
                 </span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-slate-600 dark:text-slate-400">Valor Atual:</span>
+                <span className="text-slate-600 dark:text-slate-400">Valor Atual (Real):</span>
                 <span className="font-bold text-slate-900 dark:text-white">
                   {formatCurrency(singleCurrentValue)}
                 </span>
@@ -456,4 +541,5 @@ export const AssetFormModal: React.FC<AssetFormModalProps> = ({
     </Modal>
   );
 };
+
 

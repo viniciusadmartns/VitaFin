@@ -506,9 +506,51 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
   // --- CRUD Dividendos ---
 
   const addDividend = (dividendData: Omit<Dividend, 'id' | 'createdAt'>): Dividend => {
+    const cleanTicker = dividendData.ticker.toUpperCase().trim();
+    const targetYear = dividendData.paymentDate
+      ? dividendData.paymentDate.substring(0, 4)
+      : String(new Date().getFullYear());
+
+    // Se já existir provento cadastrado para o mesmo ativo no mesmo ano, somar ao existente
+    const existingDividend = dividends.find(
+      d => (d.assetId === dividendData.assetId || d.ticker.toUpperCase().trim() === cleanTicker) &&
+           d.paymentDate &&
+           d.paymentDate.startsWith(targetYear)
+    );
+
+    if (existingDividend) {
+      const addedTotal = Number(dividendData.totalAmount || 0);
+      const existingTotal = Number(existingDividend.totalAmount || 0);
+      const totalAmount = existingTotal + addedTotal;
+
+      const quantity = dividendData.quantity || existingDividend.quantity || 1;
+      const amountPerShare = quantity > 0 ? totalAmount / quantity : (existingDividend.amountPerShare + dividendData.amountPerShare);
+
+      const updatedDividend: Dividend = {
+        ...existingDividend,
+        totalAmount,
+        amountPerShare,
+        quantity,
+        paymentDate: dividendData.paymentDate || existingDividend.paymentDate,
+        type: dividendData.type || existingDividend.type,
+        notes: dividendData.notes
+          ? (existingDividend.notes ? `${existingDividend.notes}\n${dividendData.notes}` : dividendData.notes)
+          : existingDividend.notes,
+        referenceDate: dividendData.referenceDate || existingDividend.referenceDate,
+      };
+
+      setDividends(prev => prev.map(d => d.id === existingDividend.id ? updatedDividend : d));
+
+      if (user && supabase) {
+        syncDividendToSupabase(updatedDividend, user.id);
+      }
+
+      return updatedDividend;
+    }
+
     const newDividend: Dividend = {
       ...dividendData,
-      ticker: dividendData.ticker.toUpperCase().trim(),
+      ticker: cleanTicker,
       id: `div-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       createdAt: new Date().toISOString(),
     };
@@ -658,12 +700,15 @@ export const InvestmentProvider: React.FC<{ children: ReactNode }> = ({ children
   const updateAllPrices = async () => {
     if (assets.length === 0) return;
 
-    const tickers = assets.map(a => a.ticker);
+    const tickers = assets.map(a => a.ticker.toUpperCase().trim());
     const prices = await fetchMultipleStockPrices(tickers);
+
+    if (Object.keys(prices).length === 0) return;
 
     setAssets(prev =>
       prev.map(asset => {
-        const newPrice = prices[asset.ticker];
+        const cleanTicker = asset.ticker.toUpperCase().trim();
+        const newPrice = prices[cleanTicker] || prices[asset.ticker];
         if (newPrice && newPrice > 0) {
           const currentValue = asset.quantity * newPrice;
           const profitLoss = currentValue - asset.totalInvested;
