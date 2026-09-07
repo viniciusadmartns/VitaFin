@@ -53,6 +53,56 @@ CREATE TABLE IF NOT EXISTS public.expenses (
 -- Garantir coluna 'type' caso a tabela já exista de versões anteriores
 ALTER TABLE public.expenses ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'expense';
 
+-- ==============================================================================
+-- 🔄 CORREÇÃO AUTOMÁTICA DE REGISTROS DE RECEITAS (ENTRADAS) EXISTENTES
+-- ==============================================================================
+UPDATE public.categories
+SET type = 'income'
+WHERE id ILIKE '%salario%'
+   OR id ILIKE '%freelance%'
+   OR id ILIKE '%investimento%'
+   OR id ILIKE '%vendas%'
+   OR id ILIKE '%bonus%'
+   OR id ILIKE '%receita%'
+   OR id ILIKE '%entrada%'
+   OR id ILIKE '%outras-entradas%'
+   OR icon IN ('banknote', 'briefcase', 'trending-up', 'gift', 'wallet', 'coins', 'badge-dollar-sign', 'arrow-down-left', 'dollar-sign')
+   OR name ILIKE '%salário%'
+   OR name ILIKE '%salario%'
+   OR name ILIKE '%remuneração%'
+   OR name ILIKE '%remuneracao%'
+   OR name ILIKE '%freelance%'
+   OR name ILIKE '%rendimento%'
+   OR name ILIKE '%dividendo%'
+   OR name ILIKE '%provento%'
+   OR name ILIKE '%bônus%'
+   OR name ILIKE '%bonus%'
+   OR name ILIKE '%receita%'
+   OR name ILIKE '%entrada%';
+
+UPDATE public.expenses e
+SET type = 'income'
+FROM public.categories c
+WHERE e.category_id = c.id AND c.type = 'income';
+
+UPDATE public.expenses
+SET type = 'income'
+WHERE category_id ILIKE '%salario%'
+   OR category_id ILIKE '%freelance%'
+   OR category_id ILIKE '%invest%'
+   OR category_id ILIKE '%bonus%'
+   OR category_id ILIKE '%receita%'
+   OR category_id ILIKE '%entrada%'
+   OR title ILIKE '%salário%'
+   OR title ILIKE '%salario%'
+   OR title ILIKE '%remuneração%'
+   OR title ILIKE '%remuneracao%'
+   OR title ILIKE '%freelance%'
+   OR title ILIKE '%rendimento%'
+   OR title ILIKE '%dividendo%'
+   OR title ILIKE '%provento%'
+   OR title ILIKE '%receita%';
+
 -- Tabela de Metas / Orçamento Mensal
 CREATE TABLE IF NOT EXISTS public.budgets (
     id TEXT PRIMARY KEY,

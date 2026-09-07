@@ -87,15 +87,125 @@ const DEFAULT_FILTER: ExpenseFilter = {
   sortBy: 'date-desc',
 };
 
-// Helper to determine if category is income by icon/id/name heuristics if type is missing
+// Helper to determine if category is income by icon/id/name heuristics or explicit type
 function inferCategoryType(cat: { id?: string; name?: string; icon?: string; type?: string }): TransactionType {
-  if (cat.type === 'income' || cat.type === 'expense') return cat.type;
-  const incomeIcons = ['banknote', 'briefcase', 'trending-up', 'gift', 'wallet', 'coins', 'badge-dollar-sign'];
+  const incomeIcons = [
+    'banknote',
+    'briefcase',
+    'trending-up',
+    'gift',
+    'wallet',
+    'coins',
+    'badge-dollar-sign',
+    'arrow-down-left',
+    'dollar-sign',
+  ];
   if (cat.icon && incomeIcons.includes(cat.icon)) return 'income';
+
   const idLower = (cat.id || '').toLowerCase();
-  if (idLower.includes('salario') || idLower.includes('freelance') || idLower.includes('invest') || idLower.includes('vendas') || idLower.includes('bonus') || idLower.includes('income') || idLower.includes('receita')) {
+  if (
+    idLower.includes('salario') ||
+    idLower.includes('freelance') ||
+    idLower.includes('invest') ||
+    idLower.includes('vendas') ||
+    idLower.includes('bonus') ||
+    idLower.includes('income') ||
+    idLower.includes('receita') ||
+    idLower.includes('entrada') ||
+    idLower.includes('outras-entradas') ||
+    idLower.includes('rendimento') ||
+    idLower.includes('dividendo') ||
+    idLower.includes('provento')
+  ) {
     return 'income';
   }
+
+  const nameLower = (cat.name || '').toLowerCase();
+  if (
+    nameLower.includes('salário') ||
+    nameLower.includes('salario') ||
+    nameLower.includes('remuneração') ||
+    nameLower.includes('remuneracao') ||
+    nameLower.includes('freelance') ||
+    nameLower.includes('rendimento') ||
+    nameLower.includes('dividendo') ||
+    nameLower.includes('provento') ||
+    nameLower.includes('bônus') ||
+    nameLower.includes('bonus') ||
+    nameLower.includes('prêmio') ||
+    nameLower.includes('premio') ||
+    nameLower.includes('receita') ||
+    nameLower.includes('entrada') ||
+    nameLower.includes('faturamento') ||
+    nameLower.includes('comissão') ||
+    nameLower.includes('comissao') ||
+    nameLower.includes('lucro') ||
+    nameLower.includes('vendas') ||
+    nameLower.includes('venda')
+  ) {
+    return 'income';
+  }
+
+  if (cat.type === 'income') return 'income';
+  if (cat.type === 'expense') return 'expense';
+
+  return 'expense';
+}
+
+// Helper to determine if an expense/transaction is income
+function inferExpenseType(
+  exp: { categoryId?: string; category_id?: string; title?: string; type?: string },
+  categoriesMap?: Map<string, Category>
+): TransactionType {
+  const catId = exp.categoryId || exp.category_id || '';
+  const linkedCat = categoriesMap?.get(catId);
+
+  if (linkedCat) {
+    if (linkedCat.type === 'income' || inferCategoryType(linkedCat) === 'income') {
+      return 'income';
+    }
+  }
+
+  const catIdLower = catId.toLowerCase();
+  if (
+    catIdLower.includes('salario') ||
+    catIdLower.includes('freelance') ||
+    catIdLower.includes('invest') ||
+    catIdLower.includes('vendas') ||
+    catIdLower.includes('bonus') ||
+    catIdLower.includes('income') ||
+    catIdLower.includes('receita') ||
+    catIdLower.includes('entrada') ||
+    catIdLower.includes('outras-entradas') ||
+    catIdLower.includes('rendimento') ||
+    catIdLower.includes('dividendo') ||
+    catIdLower.includes('provento')
+  ) {
+    return 'income';
+  }
+
+  const titleLower = (exp.title || '').toLowerCase();
+  if (
+    titleLower.includes('salário') ||
+    titleLower.includes('salario') ||
+    titleLower.includes('remuneração') ||
+    titleLower.includes('remuneracao') ||
+    titleLower.includes('freelance') ||
+    titleLower.includes('rendimento') ||
+    titleLower.includes('dividendo') ||
+    titleLower.includes('provento') ||
+    titleLower.includes('bônus') ||
+    titleLower.includes('bonus') ||
+    titleLower.includes('receita') ||
+    titleLower.includes('entrada') ||
+    titleLower.includes('comissão') ||
+    titleLower.includes('comissao') ||
+    titleLower.includes('faturamento')
+  ) {
+    return 'income';
+  }
+
+  if (exp.type === 'income') return 'income';
   return 'expense';
 }
 
@@ -134,12 +244,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (saved) {
         const parsed: Category[] = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const hasIncomeCats = parsed.some((c: Category) => c.type === 'income' || inferCategoryType(c) === 'income');
           let combinedList: Category[] = parsed.map((c: Category) => ({
             ...c,
-            type: (c.type || inferCategoryType(c)) as TransactionType,
+            type: inferCategoryType(c),
           }));
 
+          const hasIncomeCats = combinedList.some((c: Category) => c.type === 'income');
           if (!hasIncomeCats) {
             const defaultIncomeCats = DEFAULT_CATEGORIES.filter((c) => c.type === 'income');
             combinedList = [...combinedList, ...defaultIncomeCats];
@@ -165,10 +275,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (Array.isArray(parsed)) {
           const cleanExpenses = parsed
             .filter((e: Expense) => !e.id?.startsWith('sample-'))
-            .map((e: Expense) => ({
-              ...e,
-              type: e.type || 'expense',
-            }));
+            .map((e: Expense) => {
+              const resolvedType = inferExpenseType({
+                categoryId: e.categoryId,
+                title: e.title,
+                type: e.type,
+              });
+              return {
+                ...e,
+                type: resolvedType,
+              };
+            });
 
           if (cleanExpenses.length !== parsed.length) {
             localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(cleanExpenses));
@@ -299,18 +416,29 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         console.error('Erro ao buscar categorias do Supabase:', catError);
       } else if (catData && catData.length > 0) {
         const mappedCategories: Category[] = catData.map((c: Record<string, unknown>) => {
-          const inferType = inferCategoryType({
+          const inferredType = inferCategoryType({
             id: String(c.id),
             name: String(c.name),
             icon: String(c.icon),
             type: c.type as string | undefined,
           });
+
+          // Se a categoria no banco de dados estiver com tipo errado (ex: default 'expense'), corrige automaticamente no Supabase
+          if (c.type !== inferredType && supabase) {
+            supabase
+              .from('categories')
+              .update({ type: inferredType })
+              .eq('id', String(c.id))
+              .eq('user_id', userId)
+              .then();
+          }
+
           return {
             id: String(c.id),
             name: String(c.name),
             color: String(c.color),
             icon: String(c.icon),
-            type: ((c.type as Category['type']) || inferType) as TransactionType,
+            type: inferredType,
             isDefault: Boolean(c.is_default),
             budgetLimit: c.budget_limit ? Number(c.budget_limit) : undefined,
           };
@@ -383,14 +511,23 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const catMap = new Map<string, Category>(currentCategories.map((c) => [c.id, c]));
 
         const mappedExpenses: Expense[] = expData.map((e: Record<string, unknown>) => {
-          let itemType: TransactionType = (e.type as TransactionType);
-          if (!itemType || (itemType !== 'expense' && itemType !== 'income')) {
-            const linkedCat = catMap.get(String(e.category_id));
-            if (linkedCat?.type === 'income') {
-              itemType = 'income';
-            } else {
-              itemType = 'expense';
-            }
+          const finalType = inferExpenseType(
+            {
+              categoryId: String(e.category_id),
+              title: String(e.title),
+              type: e.type as string | undefined,
+            },
+            catMap
+          );
+
+          // Se o lançamento no banco de dados estiver com tipo incorreto, corrige automaticamente no Supabase
+          if (e.type !== finalType && supabase) {
+            supabase
+              .from('expenses')
+              .update({ type: finalType })
+              .eq('id', String(e.id))
+              .eq('user_id', userId)
+              .then();
           }
 
           return {
@@ -399,8 +536,8 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
             amount: Number(e.amount),
             date: String(e.date),
             categoryId: String(e.category_id),
-            type: itemType,
-            paymentMethod: (e.payment_method as Expense['paymentMethod']) || 'pix',
+            type: finalType,
+            paymentMethod: (e.payment_method as Expense['paymentMethod']) || (finalType === 'income' ? undefined : 'pix'),
             notes: e.notes ? String(e.notes) : undefined,
             installmentGroupId: e.installment_group_id ? String(e.installment_group_id) : undefined,
             installmentNumber: e.installment_number ? Number(e.installment_number) : undefined,
@@ -462,7 +599,14 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           if (Array.isArray(parsed)) {
             const cleanExpenses = parsed
               .filter((e: Expense) => !e.id?.startsWith('sample-'))
-              .map((e: Expense) => ({ ...e, type: e.type || 'expense' }));
+              .map((e: Expense) => ({
+                ...e,
+                type: inferExpenseType({
+                  categoryId: e.categoryId,
+                  title: e.title,
+                  type: e.type,
+                }),
+              }));
             setExpenses(cleanExpenses);
           }
         }
@@ -470,7 +614,13 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (savedCat) {
           const parsedCat = JSON.parse(savedCat);
           if (Array.isArray(parsedCat) && parsedCat.length > 0) {
-            setCategories(parsedCat);
+            const mappedCats = parsedCat.map((c: Category) => ({
+              ...c,
+              type: inferCategoryType(c),
+            })).sort((a: Category, b: Category) =>
+              a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+            );
+            setCategories(mappedCats);
           }
         }
       } catch (e) {
