@@ -23,6 +23,10 @@ interface PadContextType {
   selectedTag: string | null;
   setSelectedTag: (tag: string | null) => void;
 
+  // View mode
+  viewMode: 'grid' | 'list';
+  toggleViewMode: () => void;
+
   // Modal Note
   isModalOpen: boolean;
   activeNoteId: string | null;
@@ -65,6 +69,17 @@ export const PadProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
+    return (localStorage.getItem('vitapad-view-mode') as 'grid' | 'list') || 'grid';
+  });
+
+  const toggleViewMode = useCallback(() => {
+    setViewMode((prev) => {
+      const next = prev === 'grid' ? 'list' : 'grid';
+      localStorage.setItem('vitapad-view-mode', next);
+      return next;
+    });
+  }, []);
 
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -256,6 +271,8 @@ export const PadProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setSearchQuery,
         selectedTag,
         setSelectedTag,
+        viewMode,
+        toggleViewMode,
         isModalOpen,
         activeNoteId,
         openNewNote,

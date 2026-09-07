@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { usePad } from '../../context/PadContext';
 import { PadCard } from './PadCard';
 import { PadModal } from './PadModal';
-import { Search, Pin, LayoutGrid, List } from 'lucide-react';
+import { Search, Pin } from 'lucide-react';
 import { CalculatorModal } from './CalculatorModal';
 
 export const PadDashboard: React.FC = () => {
@@ -17,25 +17,22 @@ export const PadDashboard: React.FC = () => {
     isModalOpen,
     activeNoteId,
     closeNoteModal,
+    viewMode,
+    toggleViewMode,
   } = usePad();
 
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
 
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => {
-    return (localStorage.getItem('vitapad-view-mode') as 'grid' | 'list') || 'grid';
-  });
-
-  const handleToggleViewMode = () => {
-    const next = viewMode === 'grid' ? 'list' : 'grid';
-    setViewMode(next);
-    localStorage.setItem('vitapad-view-mode', next);
-  };
-
   useEffect(() => {
     const handleOpen = () => setIsCalculatorOpen(true);
+    const handleToggle = () => toggleViewMode();
     window.addEventListener('open-calculator', handleOpen);
-    return () => window.removeEventListener('open-calculator', handleOpen);
-  }, []);
+    window.addEventListener('toggle-vitapad-view', handleToggle);
+    return () => {
+      window.removeEventListener('open-calculator', handleOpen);
+      window.removeEventListener('toggle-vitapad-view', handleToggle);
+    };
+  }, [toggleViewMode]);
 
   const filteredNotes = notes.filter((n) => {
     const matchesSearch =
@@ -74,16 +71,7 @@ export const PadDashboard: React.FC = () => {
             </button>
           )}
         </div>
-        
-        <button
-          type="button"
-          onClick={handleToggleViewMode}
-          className="h-11 w-16 sm:h-12 sm:w-24 flex-shrink-0 rounded-3xl bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-800 border-2 border-slate-300/80 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-500 text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 shadow-md shadow-slate-200/50 dark:shadow-none flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-          title={viewMode === 'grid' ? 'Mudar para Lista' : 'Mudar para Grade'}
-        >
-          {viewMode === 'grid' ? <List className="w-5 h-5" /> : <LayoutGrid className="w-5 h-5" />}
-        </button>
-      </div>
+        </div>
 
         {/* Tags filtro */}
         {tags.length > 0 && (

@@ -5,6 +5,7 @@ import logoImgPad from '../../../img/logo3.png';
 import { useAppModule } from '../../context/AppModuleContext';
 import { useFinance } from '../../context/FinanceContext';
 import { useAuth } from '../../context/AuthContext';
+import { usePad } from '../../context/PadContext';
 import { Button } from '../common/Button';
 import {
   Plus,
@@ -16,6 +17,8 @@ import {
   CloudOff,
   ChevronDown,
   Calculator,
+  LayoutGrid,
+  List,
 } from 'lucide-react';
 import { CategoryManagerModal } from '../categories/CategoryManagerModal';
 import { AuthModal } from '../auth/AuthModal';
@@ -29,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense, onOpenNewDivid
   const { currentModule, setModule, moduleConfig } = useAppModule();
   const { theme, toggleTheme, categories, isLoadingData } = useFinance();
   const { user, isConfigured } = useAuth();
+  const { viewMode, toggleViewMode } = usePad();
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isModuleSelectorOpen, setIsModuleSelectorOpen] = useState(false);
@@ -281,6 +285,19 @@ export const Header: React.FC<HeaderProps> = ({ onOpenNewExpense, onOpenNewDivid
             ) : currentModule === 'vitapad' ? (
               /* Calculadora + Nova Anotação CTA for VitaPad */
               <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Toggle view mode for VitaPad */}
+                {currentModule === 'vitapad' && (
+                  <button
+                    type="button"
+                    onClick={() => toggleViewMode()}
+                    className="h-9 w-9 sm:h-10 sm:w-10 flex items-center justify-center rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950/60 dark:to-amber-900/40 border-2 border-amber-200/80 dark:border-amber-800/80 text-amber-700 dark:text-amber-300 shadow-sm shadow-amber-200/30 hover:border-amber-400 dark:hover:border-amber-500 hover:scale-105 active:scale-95 transition-all"
+                    title="Mudar visualização"
+                    aria-label="Mudar visualização"
+                  >
+                    {viewMode === 'grid' ? <List className="w-4 h-4" /> : <LayoutGrid className="w-4 h-4" />}
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => window.dispatchEvent(new CustomEvent('open-calculator'))}
