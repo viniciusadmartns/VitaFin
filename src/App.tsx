@@ -17,10 +17,111 @@ import { BudgetModal } from './components/budget/BudgetModal';
 import { CategoryManagerModal } from './components/categories/CategoryManagerModal';
 import { TransactionType } from './types/finance';
 import { Input } from './components/common/Input';
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, TrendingUp, PieChart, DollarSign, Wallet, LineChart, BarChart3, Coins, AreaChart, ArrowUpRight } from 'lucide-react';
 import logoImgFin from '../img/logo.png';
 import logoImgInvest from '../img/logo2.png';
 import logoImgPad from '../img/logo3.png';
+
+// ─── Background Animado de Finanças ──────────────────────────────────────────
+const FinanceAnimatedBackground: React.FC = () => {
+  const [mouse, setMouse] = React.useState({ x: 50, y: 50 });
+  React.useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      setMouse({ x: (e.clientX / window.innerWidth) * 100, y: (e.clientY / window.innerHeight) * 100 });
+    };
+    window.addEventListener('mousemove', onMove, { passive: true });
+    return () => window.removeEventListener('mousemove', onMove);
+  }, []);
+  const floatingIcons = [
+    { Icon: TrendingUp,  size: 32, x: '7%',  y: '14%', delay: 0,   duration: 18, color: 'text-emerald-500/20 dark:text-emerald-400/20' },
+    { Icon: DollarSign,  size: 28, x: '85%', y: '11%', delay: 2,   duration: 22, color: 'text-amber-500/15 dark:text-amber-300/15' },
+    { Icon: PieChart,    size: 36, x: '78%', y: '68%', delay: 4,   duration: 20, color: 'text-emerald-500/15 dark:text-emerald-300/15' },
+    { Icon: Wallet,      size: 26, x: '10%', y: '74%', delay: 1,   duration: 24, color: 'text-blue-500/20 dark:text-blue-300/20' },
+    { Icon: LineChart,   size: 40, x: '88%', y: '6%',  delay: 3,   duration: 19, color: 'text-blue-500/10 dark:text-blue-300/10' },
+    { Icon: BarChart3,   size: 30, x: '92%', y: '55%', delay: 5,   duration: 21, color: 'text-amber-500/20 dark:text-amber-400/20' },
+    { Icon: Coins,       size: 24, x: '28%', y: '88%', delay: 2.5, duration: 23, color: 'text-amber-500/15 dark:text-amber-300/15' },
+    { Icon: ArrowUpRight, size: 22, x: '65%', y: '48%', delay: 6,   duration: 25, color: 'text-emerald-500/15 dark:text-emerald-400/15' },
+    { Icon: AreaChart,   size: 26, x: '18%', y: '35%', delay: 3.5, duration: 17, color: 'text-blue-500/15 dark:text-blue-300/15' },
+  ];
+  return (
+    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+      {/* Mouse-follow glow */}
+      <div
+        className="absolute w-[600px] h-[600px] rounded-full blur-[150px] pointer-events-none transition-transform duration-75 ease-out z-0"
+        style={{
+          background: 'radial-gradient(circle, rgba(16,185,129,0.18) 0%, rgba(59,130,246,0.12) 60%, transparent 100%)',
+          left: `calc(${mouse.x}% - 300px)`,
+          top: `calc(${mouse.y}% - 300px)`,
+        }}
+      />
+
+      <div className="absolute w-[500px] h-[500px] -top-40 -left-40 bg-emerald-500/[0.08] rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
+      <div className="absolute w-[400px] h-[400px] -bottom-32 -right-32 bg-blue-500/[0.08] rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '10s', animationDelay: '3s' }} />
+      {/* Ticker Tape no Topo (Estilo Bolsa de Valores) */}
+      <div className="absolute top-4 left-0 right-0 overflow-hidden opacity-20 dark:opacity-25 whitespace-nowrap pointer-events-none select-none text-[10px] font-mono tracking-wider">
+        <div className="inline-block animate-[tickerLoop_25s_linear_infinite]" style={{ minWidth: '100%' }}>
+          <span className="text-emerald-500 font-bold">▲ IBOV +1.42%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ S&amp;P 500 +0.85%</span> &nbsp; • &nbsp;
+          <span className="text-rose-500 font-bold">▼ USD/BRL -0.32%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ BTC +3.12%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ PETR4 +2.10%</span> &nbsp; • &nbsp;
+          <span className="text-rose-500 font-bold">▼ VALE3 -0.45%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ FIIs IFIX +0.18%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ CDI 10.50%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ TESOURO SELIC +0.02%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ IBOV +1.42%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ S&amp;P 500 +0.85%</span> &nbsp; • &nbsp;
+        </div>
+      </div>
+
+      {/* Floating Candlestick / Market Chart Decorativo */}
+      <div className="absolute top-1/3 -left-12 opacity-15 dark:opacity-20 hidden md:flex items-end gap-1.5 h-32 pointer-events-none">
+        {[
+          { h: '60%', c: 'bg-emerald-500' },
+          { h: '85%', c: 'bg-emerald-500' },
+          { h: '45%', c: 'bg-rose-500' },
+          { h: '70%', c: 'bg-emerald-500' },
+          { h: '95%', c: 'bg-emerald-500' },
+        ].map((candle, idx) => (
+          <div key={idx} className="flex flex-col items-center justify-end h-full w-2">
+            <div className={`w-0.5 h-full ${candle.c} opacity-40`} />
+            <div className={`w-2.5 rounded-sm ${candle.c}`} style={{ height: candle.h }} />
+            <div className={`w-0.5 h-4 ${candle.c} opacity-40`} />
+          </div>
+        ))}
+      </div>
+
+      <div className="absolute top-1/4 -right-8 opacity-15 dark:opacity-20 hidden md:flex items-end gap-1.5 h-32 pointer-events-none">
+        {[
+          { h: '50%', c: 'bg-emerald-500' },
+          { h: '75%', c: 'bg-emerald-500' },
+          { h: '90%', c: 'bg-emerald-500' },
+          { h: '60%', c: 'bg-rose-500' },
+          { h: '100%', c: 'bg-emerald-500' },
+        ].map((candle, idx) => (
+          <div key={idx} className="flex flex-col items-center justify-end h-full w-2">
+            <div className={`w-0.5 h-full ${candle.c} opacity-40`} />
+            <div className={`w-2.5 rounded-sm ${candle.c}`} style={{ height: candle.h }} />
+            <div className={`w-0.5 h-4 ${candle.c} opacity-40`} />
+          </div>
+        ))}
+      </div>
+
+      {floatingIcons.map((item, i) => (
+        <div
+          key={i}
+          className={`absolute ${item.color}`}
+          style={{ left: item.x, top: item.y, animation: `loginFloat ${item.duration}s ease-in-out ${item.delay}s infinite`, transition: 'transform 0.35s ease-out' }}
+          data-icon
+          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-10px) scale(1.25)'; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = ''; }}
+        >
+          <item.Icon size={item.size} strokeWidth={1.2} />
+        </div>
+      ))}
+    </div>
+  );
+};
 
 // ─── Tela de Login / Cadastro ────────────────────────────────────────────────
 const LoginScreen: React.FC = () => {
@@ -90,7 +191,8 @@ const LoginScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-950 dark:to-slate-900 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-950 dark:to-slate-900 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <FinanceAnimatedBackground />
 
       {/* Card central */}
       <div className="w-full max-w-md">
@@ -246,9 +348,6 @@ const LoginScreen: React.FC = () => {
           )}
         </div>
 
-        <p className="text-center text-[11px] text-slate-400 dark:text-slate-600 mt-6">
-          Seus dados são sincronizados com segurança na nuvem via Supabase.
-        </p>
       </div>
     </div>
   );
