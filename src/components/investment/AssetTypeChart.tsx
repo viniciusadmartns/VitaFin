@@ -42,7 +42,7 @@ export const AssetTypeChart: React.FC = () => {
         </div>
         <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">Tipo de Ativo</h3>
       </div>
-      <div className="h-44 sm:h-56">
+      <div className="h-56 sm:h-64">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie

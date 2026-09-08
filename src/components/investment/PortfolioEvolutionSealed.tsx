@@ -71,7 +71,7 @@ export const PortfolioEvolutionChartSealed: React.FC = () => {
         </h3>
         <span className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-medium bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">{selectedYear}</span>
       </div>
-      <div className="h-44 sm:h-56 w-full flex-1">
+      <div className="h-[240px] sm:h-[256px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
             <defs>
