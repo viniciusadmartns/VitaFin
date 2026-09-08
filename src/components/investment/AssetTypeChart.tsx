@@ -40,7 +40,7 @@ export const AssetTypeChart: React.FC = () => {
         <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
           <PieChartIcon className="w-4 h-4" />
         </div>
-        <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Distribuição por Tipo</h3>
+        <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">Tipo de Ativo</h3>
       </div>
       <div className="h-44 sm:h-56">
         <ResponsiveContainer width="100%" height="100%">
@@ -76,14 +76,13 @@ export const AssetTypeChart: React.FC = () => {
                 );
               }}
             />
-            <Legend verticalAlign="bottom" height={24} iconType="circle" />
+            <Legend verticalAlign="bottom" height={24} iconType="none" />
           </PieChart>
         </ResponsiveContainer>
       </div>
       <div className="flex gap-4 mt-2 text-xs text-slate-500 dark:text-slate-400 justify-center">
         {data.map(d => (
           <span key={d.name} className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
             {d.name}: {d.count} ativo{d.count !== 1 ? 's' : ''}
           </span>
         ))}

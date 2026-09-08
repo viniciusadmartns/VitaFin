@@ -73,6 +73,12 @@
 }
 
 @keyframes tickerLoop {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-continuo { animation: tickerLoop 40s linear infinite; }
+@keyframes tickerLoopSlow {
   0%   { transform: translateX(100%); }
   100% { transform: translateX(-100%); }
 }
+.ticker-slow { animation: tickerLoopSlow 45s linear infinite; }

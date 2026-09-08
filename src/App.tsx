@@ -58,8 +58,8 @@ const FinanceAnimatedBackground: React.FC = () => {
       <div className="absolute w-[500px] h-[500px] -top-40 -left-40 bg-emerald-500/[0.08] rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '8s' }} />
       <div className="absolute w-[400px] h-[400px] -bottom-32 -right-32 bg-blue-500/[0.08] rounded-full blur-[120px] animate-pulse" style={{ animationDuration: '10s', animationDelay: '3s' }} />
       {/* Ticker Tape no Topo (Estilo Bolsa de Valores) */}
-      <div className="absolute top-4 left-0 right-0 overflow-hidden opacity-20 dark:opacity-25 whitespace-nowrap pointer-events-none select-none text-[10px] font-mono tracking-wider">
-        <div className="inline-block animate-[tickerLoop_25s_linear_infinite]" style={{ minWidth: '100%' }}>
+      <div className="absolute top-4 left-0 right-0 overflow-hidden opacity-40 dark:opacity-50 whitespace-nowrap pointer-events-none select-none text-[10px] font-mono tracking-wider">
+        <div className="inline-block ticker-continuo" style={{ minWidth: '200%' }}>
           <span className="text-emerald-500 font-bold">▲ IBOV +1.42%</span> &nbsp; • &nbsp;
           <span className="text-emerald-500 font-bold">▲ S&amp;P 500 +0.85%</span> &nbsp; • &nbsp;
           <span className="text-rose-500 font-bold">▼ USD/BRL -0.32%</span> &nbsp; • &nbsp;
@@ -69,6 +69,28 @@ const FinanceAnimatedBackground: React.FC = () => {
           <span className="text-emerald-500 font-bold">▲ FIIs IFIX +0.18%</span> &nbsp; • &nbsp;
           <span className="text-emerald-500 font-bold">▲ CDI 10.50%</span> &nbsp; • &nbsp;
           <span className="text-emerald-500 font-bold">▲ TESOURO SELIC +0.02%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ IBOV +1.42%</span> &nbsp; • &nbsp;
+          <span className="text-rose-500 font-bold">▼ USD/BRL -0.32%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ BTC +3.12%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ PETR4 +2.10%</span> &nbsp; • &nbsp;
+          <span className="text-rose-500 font-bold">▼ VALE3 -0.45%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ FIIs IFIX +0.18%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ CDI 10.50%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ TESOURO SELIC +0.02%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ IBOV +1.42%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ S&amp;P 500 +0.85%</span> &nbsp; • &nbsp;
+          <span className="text-rose-500 font-bold">▼ USD/BRL -0.32%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ BTC +3.12%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ PETR4 +2.10%</span> &nbsp; • &nbsp;
+          <span className="text-rose-500 font-bold">▼ VALE3 -0.45%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ FIIs IFIX +0.18%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ CDI 10.50%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ TESOURO SELIC +0.02%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ IBOV +1.42%</span> &nbsp; • &nbsp;
+          <span className="text-rose-500 font-bold">▼ USD/BRL -0.32%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ IBOV +1.42%</span> &nbsp; • &nbsp;
+          <span className="text-rose-500 font-bold">▼ S&amp;P 500 -0.15%</span> &nbsp; • &nbsp;
+          <span className="text-emerald-500 font-bold">▲ BTC +3.12%</span> &nbsp; • &nbsp;
           <span className="text-emerald-500 font-bold">▲ IBOV +1.42%</span> &nbsp; • &nbsp;
           <span className="text-emerald-500 font-bold">▲ S&amp;P 500 +0.85%</span> &nbsp; • &nbsp;
         </div>
