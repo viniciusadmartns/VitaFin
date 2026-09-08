@@ -8,7 +8,9 @@ import { AssetFormModal } from './AssetFormModal';
 import { DividendFormModal } from './DividendFormModal';
 import { DividendListModal } from './DividendListModal';
 import { YearSelector } from './YearSelector';
-import { PortfolioEvolutionChart } from './PortfolioEvolutionChart';
+import { AssetTypeChart } from './AssetTypeChart';
+import { DividendEvolutionChart } from './DividendEvolutionChart';
+import { PortfolioEvolutionChartSealed } from './PortfolioEvolutionSealed';
 
 const isFII = (asset?: { ticker?: string; name?: string; type?: string }) => {
   if (!asset) return false;
@@ -205,8 +207,12 @@ export const InvestmentDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Gráfico de Evolução de Proventos Mensais */}
-        <PortfolioEvolutionChart />
+        {/* Gráficos */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 items-stretch">
+          <AssetTypeChart />
+          <DividendEvolutionChart />
+          <PortfolioEvolutionChartSealed />
+        </div>
 
         {/* Lista de Ativos */}
         {filteredAssets.length === 0 ? (
@@ -276,9 +282,6 @@ export const InvestmentDashboard: React.FC = () => {
                     {/* Cabeçalho do Card */}
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-sm">
-                          {asset.ticker.slice(0, 4)}
-                        </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate">
