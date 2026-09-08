@@ -76,7 +76,7 @@ export const AssetTypeChart: React.FC = () => {
                 );
               }}
             />
-            <Legend verticalAlign="bottom" height={24} iconType="none" />
+            <Legend verticalAlign="bottom" height={24} iconType="square" />
           </PieChart>
         </ResponsiveContainer>
       </div>
